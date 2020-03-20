@@ -3,7 +3,9 @@ title: "Understanding The Basic Reproductive Rate, or 'R naught'"
 author: "Chris H. Wilson, PhD"
 date: "March 20, 2020"
 output:
-  html_document: default
+  html_document: 
+    toc: true 
+    toc_depth: 2 
   pdf_document: default
   word_document: default
 ---
@@ -11,8 +13,10 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr); library(ggplot2)
+knitr::opts_knit$set(eval.after = 'fig.cap')
+
 ```
-Disclaimer: the following represents material for educational purposes only and reflects the views and analyses of its author, Chris H. Wilson. In particuar, it does not represent the views or official policies of his employer, the University of Florida, nor does it constitute advice if the reader feels they have been exposed to SARS-COV2, or have any symptoms of Covid-19. In such cases, the reader is encouraged to contact their physician, and local health department for guidance. The author gives permission to all reproductions for informational purposes only, requesting only a link back to this original source.     
+Disclaimer: the following represents material for educational purposes only and reflects the views and analyses of its author, Chris H. Wilson. In particuar, it does not represent the views or official policies of his employer, the University of Florida, nor does it constitute advice if the reader feels they have been exposed to SARS-COV2, or have any symptoms of Covid-19. In such cases, the reader is encouraged to contact their physician and local health department for guidance. The author gives permission to all reproductions for informational purposes only, requesting only a link back to this original source.     
 
 # Introduction 
 
@@ -26,48 +30,59 @@ To begin, recall that the basic process underying biological growth is multiplic
 We can rewrite this as: $$\tag{2} X[t+1] = (1 + \tau) X[t]$$
 and after substitution $\lambda = 1 + \tau$, we get: 
 $$\tag{3} X[t+1] = \lambda X[t]$$
-Here, $\lambda$ represents the multiplicative/geometric growth rate of the population $X$ over some discrete time interval indexed by $t$. If we take $\lambda = 2$, our time-step is a doubling interval, and the population growth looks like 
+Here, $\lambda$ represents the multiplicative/geometric growth rate of the population $X$ over some discrete time interval indexed by $t$. If we take $\lambda = 2$, our time-step is a doubling interval, and the population growth looks like that in Figure 1: 
 
-```{r, echo = FALSE}
+```{r,fig.cap = cap, echo = FALSE,out.width= "65%", out.extra='style="float:center,padding:10px"'}
 double <- function(x){
   y <- 2^x;
   return(y);
 }
-ggplot(data = data.frame(t=c(1,5)),aes(x=t)) + stat_function(fun = double) + 
-  scale_x_continuous(breaks = seq(1,5,1)) + ylab("population X") + theme_bw() + 
-  scale_y_continuous(breaks = c(2,4,8,16,32))
+ggplot(data = data.frame(t=c(1,5)),aes(x=t)) + stat_function(fun = double, geom = "point",n=5, size = 2) + 
+  scale_x_continuous(breaks = seq(1,5,1)) + ylab("X[t]") + theme_bw() + 
+  scale_y_continuous(breaks = c(2,4,8,16,32)) + 
+    theme(text = element_text(size=20))
+
+cap <- c("Fig 1: multiplicative growth")
 
 ```
 
 
+
 Given $T$ discrete time intervals, and an initial population $X[0]$, it is easily shown that our equation is $$\tag{4} X[T] = \lambda^T X[0]$$
 
-Now, discrete equations are nice, and in many ways most congenial for biological processes. However, because we want to use the tools of calculus and differential equations, we need to map this into continuous form, which we do by defining an instantaneous growth rate $k$, and setting $\lambda^T = e^{kT}$, hence $k=log(\lambda)$, and our continuous equation is: $$\tag{5} X[t] = e^{kt} X[0]$$. This turns out to be the integral solution of the differential equation: $$\tag{6} \frac{dX}{dt} = kX$$
+Now, discrete equations are nice, and in many ways most congenial for biological processes. However, because we want to use the tools of calculus and differential equations, we need to map this into continuous form, which we do by defining an instantaneous growth rate $k$, and setting $\lambda^T = e^{kT}$, hence $k=log(\lambda)$, and our continuous equation is: $$\tag{5} X[t] = e^{kt} X[0]$$ This turns out to be the integral solution of the differential equation: $$\tag{6} \frac{dX}{dt} = kX$$
 and with equation 6 we are finally ready to jump into the SIR models, from which the concept of "basic reproductive rate" is most easily derived. 
 
 # Deriving R_0  
 
 Our first goal is to model how the number of infected people in a population grows over time. To do this, we start with equation 6 and then we make additional assumptions. The basic logic is this: you start with an infected individual. That person then comes into contact with a certain number of non-infected individuals at a certain rate. Call this, "rate of contact" ($\kappa$). In each contact, there is a certain probability that the infection will be transmitted, "transmission probability"($\rho$). When the number of infected individuals is small relative to the total population ($N$), the growth in rate of infections will be, to a high degree of approximation: $$\tag{7} \frac{dI}{dt} = \kappa \rho I$$
 
-As always with differential equations, it is helpful to be super clear about the **dimensional analysis** (a hugely under-taught tool, see Sanjoy Mahavan's excellent book "Street Fighting Math"). On the left hand side, we have something with dimensions of persons/time. On the right hand side we have I (with dimensions 'persons'), multiplied by dimensionless probability $\rho$, multiplied by a rate $\kappa$. So $\kappa$ must ultimately have dimension of 1/time. Indeed, thinking it through it is #persons-contacted/(person-infected X time). The dimensions of persons cancel, and we have 1/time, just as needed. 
+Notice that this has the exact same form as the basic exponential growth model above (simply substitute $\kappa \rho$ for $k$). In fact, this is what we see - during early phases of an outbreak, the epidemic grows exponentially. 
 
-What equation 7 assumes so far is that *every person contacted by an infected individual is susceptible to infection*. However, as the infected proportion of the population grows, this assumption breaks down as the probability that an individual that is contacted is already infected, or has recovered and is now resistant increases. We now introduce a pool of susceptible individuals, "S", and we represent this probability as $S/N$ (a ratio that is also dimensionless). Since this is dimensionless, we can simply stick it onto equation 7 no problem, and we get: $$\tag{8} \frac{dI}{dt} = \kappa \rho I \frac{S}{N}$$
 
-Over time, $\frac {S}{N}$ declines to 0, and the growth rate of infections goes to zero. At this point, we need to point out that there is a stringent assumption here. That is, this probability is homogeneous across the population and can be represented by the proportion $\frac{S}{N}$. This is the so-called "law of mass action" imported from equilibrial dynamics in chemistry and physics. In this context, it requires the notion that populations are *well mixed*. The real world can get in the way of this being a good assumption when there is strong spatial structure, strong heterogeneity in the population, and so forth.   
 
-Another thing happens though. Infected individuals either die or recover and become resistant. The simplest assumption here is that death and recovery are also both first-order processes, so we subtract them from the growth rate and complete our differential equation. For now, I am going to pretend that no one dies (yay!) and people just become resistant, as the math fundamentally does not change either way: $$\tag{9} \frac {dI}{dt} = \kappa \rho I \frac{S}{N} - \nu I$$
+
+
+As always with differential equations, it is helpful to be super clear about the **dimensional analysis** (a hugely under-taught tool, see Sanjoy Mahavan's excellent book "Street Fighting Math"). On the left hand side, we have something with dimensions of persons/time. On the right hand side we have I (with dimensions 'persons'), multiplied by dimensionless probability $\rho$, multiplied by a rate $\kappa$. So $\kappa$ must ultimately have dimension of 1/time. Indeed, thinking it through it is #persons-contacted/(person-infected X time). The dimensions of persons cancel, and we have 1/time, just as needed. We will return to this dimensional analysis. 
+
+What equation 7 assumes so far is that *every person contacted by an infected individual is susceptible to infection*. However, as the infected proportion of the population grows, this assumption breaks down as the probability that an individual that is contacted is already infected, or has recovered and is now resistant increases. To accomodate, we now introduce a pool of susceptible individuals, "S", and we represent this probability as $S/N$. Since this ratio is dimensionless, we can simply stick it onto equation 7 no problem, and we get: $$\tag{8} \frac{dI}{dt} = \kappa \rho I \frac{S}{N}$$
+
+Over time, $\frac {S}{N}$ declines to 0, and the growth rate of infections goes to zero. By itself, this dynamic is essentially logistic. In fact, if there were only two states ("infected" and "susceptible"), we could rewrite as $$\tag{9} \frac{dI}{dt} = \kappa \rho I \frac{N-I}{N}=\kappa \rho I (1 - \frac{I}{N})$$ which is mathematically identical to the most common logistic growth model used in biology and ecology. On its 
+At this point, we need to point out that there is a stringent assumption here. That is, this probability is homogeneous across the population and can be represented by the proportion $\frac{S}{N}$. This is the so-called "law of mass action" imported from equilibrial dynamics in chemistry and physics. In this context, it requires the notion that populations are *well mixed*. The real world can get in the way of this being a good assumption when there is strong spatial structure, strong heterogeneity in the population, and so forth.   
+
+Another thing happens though. Infected individuals either die or recover and become resistant. The simplest assumption here is that death and recovery are also both first-order processes, so we subtract them from the growth rate and complete our differential equation. For now, I am going to pretend that no one dies (yay!) and people just become resistant, as the math fundamentally does not change either way: $$\tag{10} \frac {dI}{dt} = \kappa \rho I \frac{S}{N} - \nu I$$
 
 Now, briefly, we must maintain the RHS with dimensions of persons/time, so $\nu$ is simply another rate with dimension of 1/time, and represents rate of recovery into resistance. 
 
-And now we can see exactly what $R_0$ is and where it comes from. An individual does not stay infectious forever. They recover and become resistant "R" instead, at the rate $\nu$. But before they do this, they are generating new infections at the rate $\kappa \rho$. So if we take the following ratio: $$\tag{10} \frac {\kappa \rho}{\nu}$$, we have a nice dimensionless number that represents the average number of new infections per infected individual. This is $R_0$ the "basic reproductive number"!  
+And now we can see exactly what $R_0$ is and where it comes from. An individual does not stay infectious forever. They recover and become resistant "R" instead, at the rate $\nu$. But before they do this, they are generating new infections at the rate $\kappa \rho$. So if we take the following ratio: $$\tag{11} \frac {\kappa \rho}{\nu}$$, we have a nice dimensionless number that represents the average number of new infections per infected individual. This is $R_0$ the "basic reproductive number"!  
 
 Return to the dimensionality for a second. It is customary to write $\kappa \rho$ as $\beta$. Remember that this has a dimension of 1/time. Therefore, the "typical time" to a new infection is the reciprocal or $\frac{1}{\beta}$. Likewise, the "typical time" to recovery is $\frac{1}{\nu}$. "$R_0$" is clearly then the typical time to recovery over the typical time to infection. A larger $R_0$ could arise from either recovery taking longer, time to infection being shorter, or both. 
 
 Large $R_0$ is bad. Small $R_0$ is good. 
 
-In fact, we can now easily recover the single most important epidemiological consequence of $R_0$. Is the number of infected individuals growing or declining? Our goal is to make a set of interventions that turn equation 9 negative, thus guaranteeing the decline of infected individuals, and eventual extinction of the outbreak. 
+In fact, we can now easily recover the single most important epidemiological consequence of $R_0$. Is the number of infected individuals growing or declining? Our goal is to make a set of interventions that turn equation 10 negative, thus guaranteeing the decline of infected individuals, and eventual extinction of the outbreak. 
 
-We re-write equation 9 using $R_0$ from equation 10 and we get: $$\tag {11} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I =  \nu I (R_0 \frac{S}{N} - 1) $$
+We re-write equation 10 using $R_0$ from formula 11 and we get: $$\tag {12} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I =  \nu I (R_0 \frac{S}{N} - 1) $$
 
 At the beginning of an outbreak, where $S \approx N$, this differential equation is clearly positive when $R_0$ > 1, and negative when $R_0$ < 1. 
 
@@ -89,7 +104,7 @@ And there you have it! This is the most basic foundation of infectious disease e
 
 We have a lot of leverage over epidemics. **Let us use our collective agency to write a better history for this pandemic!**  
 
-# Appendix: Parameters and Assumptions 
+# Appendix I: Parameters and Assumptions 
 
 Recalling Richard Levins' admonishment to always ask "Where does the rest of the world enter the model?", what follows is a run-down of key parameters and how they are impacted by the environment and social behavior. 
 
@@ -101,8 +116,10 @@ Recalling Richard Levins' admonishment to always ask "Where does the rest of the
 
 4. $\nu$. The rate of recovery. This will be impacted by medical treatment, availability of resources, underlying health of population, etc. If we were to expand the SIR model to include mortality, that rate would have similar influences. 
 
+# Appendix II: Visualizing Solutions to SIR 
+
+Coming soon. 
 
 # Acknowledgements
 
-Under construction
-Wayne Wilson, 
+In progress: Wayne Wilson, Philip Shirk, 
