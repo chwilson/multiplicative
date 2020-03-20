@@ -1,6 +1,6 @@
 ---
 title: "Understanding The Basic Reproductive Rate, or 'R naught'"
-author: "Chris H. Wilson, University of Florida"
+author: "Chris H. Wilson, PhD"
 date: "March 20, 2020"
 output:
   html_document: default
@@ -12,6 +12,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr); library(ggplot2)
 ```
+Disclaimer: the following represents material for educational purposes only and reflects the views and analyses of its author, Chris H. Wilson. In particuar, it does not represent the views or official policies of his employer, the University of Florida, nor does it constitute advice if the reader feels they have been exposed to SARS-COV2, or have any symptoms of Covid-19. In such cases, the reader is encouraged to contact their physician, and local health department for guidance. The author gives permission to all reproductions for informational purposes only, requesting only a link back to this original source.     
 
 # Introduction 
 
