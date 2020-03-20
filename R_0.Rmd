@@ -70,9 +70,9 @@ We re-write equation 9 using $R_0$ from equation 10 and we get: $$\tag {11} \fra
 
 At the beginning of an outbreak, where $S \approx N$, this differential equation is clearly positive when $R_0$ > 1, and negative when $R_0$ < 1. 
 
-Here is the punchline: at the beginning of an outbreak, if you severely limit average number of contacts between people, transmission probabilities, or both, you can drive $R_0$ below one and prevent the outbreak from ever materializing. This is the goal of social distancing measures. We can also be more surgical and effective at this if we target infected individuals and their contacts for quarantine. This requires widespread testing and is why the Trump administration's response to Covid-19 is criminal malpractice. 
+Here is the punchline: at the beginning of an outbreak, if you severely limit average number of contacts between people, transmission probabilities, or both, you can drive $R_0$ below one and prevent the outbreak from ever materializing. This is the goal of social distancing measures. We can also be more surgical and effective at this if we target infected individuals and their contacts for quarantine. This requires widespread testing and is why the Trump administration's early response to Covid-19 probably constitutes gross negligence. 
 
-As the pandemic proceeds, the number of susceptibles presumably declines, which leads to self-limitation of the outbreak through the ratio $\frac{S}{N}$. This is the so-called "herd immunity" effect that the British seem to be banking on. In better scenarios, we deploy mass scale vaccination campaigns to drive enough people out of the "S" pool so that the equation goes negative that way. "Herd immunity" via infection is a terribly risky proposition since it **requires** a lot of people to get sick, and in the case of SARS-COV2 this is going to mean lots of people dead both directly from the virus and indirectly from a flooded healthcare system that can no longer take care of people with all kinds of ailments. This, too, is criminal malpractice, given all the uncertainties about Covid-19. 
+As the pandemic proceeds, the number of susceptibles presumably declines, which leads to self-limitation of the outbreak through the ratio $\frac{S}{N}$. This is the so-called "herd immunity" effect that the British seem to be banking on. In better scenarios, we deploy mass scale vaccination campaigns to drive enough people out of the "S" pool so that the equation goes negative that way. "Herd immunity" via infection is a terribly risky proposition since it **requires** a lot of people to get sick, and in the case of SARS-COV2 this is going to mean lots of people dead both directly from the virus and indirectly from a flooded healthcare system that can no longer take care of people with all kinds of ailments. This, too, probably amounts to gross negligence, given all the uncertainties about Covid-19. 
 
 # Recovering the full SIR model 
 
@@ -82,8 +82,26 @@ $$\tag {13} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
 $$\tag {14} \frac {dR}{dt} = \nu I $$
 This represents a system of three coupled ODEs. We have removal of Susceptibles by infection, already derived in detail. The initial condition is $S[0] = N$. The dynamics of the Susceptible pool have already been derived in detail. Then we simply add an equation for the change in Recovered/Resistant pool which receives everyone dropping out of the Infected pool. 
 
+The astute reader will notice that our development actually only has 3 parameters, all of which go into the dimensionless ratio $R_0$. This is why $R_0$ is so widely discussed. It compactly summarizes all the information present in our simplest theoretical model of how infectious diseases work. 
+
 And there you have it! This is the most basic foundation of infectious disease epidemiology. Along the way, I hope the assumptions underlying the epidemiology are more clear, as is the meaning of the ubiquitous $R_0$ term. In parting, I want to emphasize that $R_0$ is NOT an inherent property of a virus. It emerges dialectically from viral biology interacting with human social behavior, which in turn is shaped historically by culture, politics and economics. 
 
 We have a lot of leverage over epidemics. **Let us use our collective agency to write a better history for this pandemic!**  
 
+# Appendix: Parameters and Assumptions 
 
+Recalling Richard Levins' admonishment to always ask "Where does the rest of the world enter the model?", what follows is a run-down of key parameters and how they are impacted by the environment and social behavior. 
+
+1. $R_0$: The basic reproductive rate. This is defined most simply as $\frac {\kappa \rho}{\nu}$ (equation 10 in text). These components are explained next. 
+
+2. $\kappa$ is here the mean # of individuals exposed by every infected individual. This is where social distancing and lock-downs come into play in a big way. Again, notice that we are assuming a constant number across everyone. We can relax that assumption and let it vary by individual and day, so long as that variability is sufficiently well-behaved, it will aggregate and we can just use the mean value. So-called "super spreaders" may cause larger problems for this assumption. But again, if the population being studied is well-mixed, that may attenuate the problems here. *Nevertheless, this deserves much closer scrutiny.* 
+
+3. $\rho$. The probability of transmission given an exposure. Again, all the caveats about mean-field apply, and it is important to resolve the many modes of transmission (aerosolization, droplet, surfaces, fecal-oral, etc.). This is also where weather **might** make a difference if it slows the virus down, hinders survival outside the body, etc. 
+
+4. $\nu$. The rate of recovery. This will be impacted by medical treatment, availability of resources, underlying health of population, etc. If we were to expand the SIR model to include mortality, that rate would have similar influences. 
+
+
+# Acknowledgements
+
+Under construction
+Wayne Wilson, 
