@@ -96,7 +96,7 @@ The rest of this tutorial will be brief. We complete our model with understandin
 $$\tag {12} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
 $$\tag {13} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
 $$\tag {14} \frac {dR}{dt} = \nu I $$
-This represents a system of three coupled ODEs. We have removal of Susceptibles by infection, already derived in detail. The initial condition is $S[0] = N$. The dynamics of the Susceptible pool have already been derived in detail. Then we simply add an equation for the change in Recovered/Resistant pool which receives everyone dropping out of the Infected pool. 
+This represents a system of three coupled ODEs. We have removal of Susceptibles by infection, already derived in detail. The initial condition is $S[0] = N$. The dynamics of the Infected pool have already been dissected in detail. Then we simply add an equation for the change in Recovered/Resistant pool which receives everyone dropping out of the Infected pool. 
 
 The astute reader will notice that our development actually only has 3 parameters, all of which go into the dimensionless ratio $R_0$. This is why $R_0$ is so widely discussed. It compactly summarizes all the information present in our simplest theoretical model of how infectious diseases work. 
 
