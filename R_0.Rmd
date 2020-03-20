@@ -1,5 +1,5 @@
 ---
-title: "Understanding R_0"
+title: "Understanding The Basic Reproductive Rate, or 'R naught'"
 author: "Chris H. Wilson, University of Florida"
 date: "March 20, 2020"
 output:
@@ -86,7 +86,4 @@ And there you have it! This is the most basic foundation of infectious disease e
 
 We have a lot of leverage over epidemics. **Let us use our collective agency to write a better history for this pandemic!**  
 
-```{r }
-
-```
 
