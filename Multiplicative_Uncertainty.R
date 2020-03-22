@@ -81,14 +81,13 @@ abline(1000,0,col=3)
 
 ## Uncertainty in BOTH 
 
-nTime <- 28
+nTime <- 21
 nEns <- 10^3
 
 traj <- matrix(NA,nTime,nEns)
-traj[1,] <- rnorm(nEns,1,0.25)
+traj[1,] <- rnorm(nEns,750,125)
 
 dub <- rnorm(nEns,2.5,0.15)
-
 
 
 for(j in 1:nEns){
@@ -108,10 +107,11 @@ plot(seq(1,nTime,1),traj[,max],type = 'l',lwd=0.1,
 for(i in 2:nEns){
   lines(seq(1,nTime,1),traj[,i],lwd=0.1)
 }
+
 lines(seq(1,nTime,1),traj[,typical],col=2)
-abline(1000,0,col=3)
+abline(100,0,col=3)
 
-
+# FL statewide 
 
 ### Zooming in 
 # non-log scale
