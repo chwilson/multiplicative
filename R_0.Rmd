@@ -67,8 +67,7 @@ As always with differential equations, it is helpful to be super clear about the
 
 What equation 7 assumes so far is that *every person contacted by an infected individual is susceptible to infection*. However, as the infected proportion of the population grows, this assumption breaks down as the probability that an individual that is contacted is already infected, or has recovered and is now resistant increases. To accomodate, we now introduce a pool of susceptible individuals, "S", and we represent this probability as $S/N$. Since this ratio is dimensionless, we can simply stick it onto equation 7 no problem, and we get: $$\tag{8} \frac{dI}{dt} = \kappa \rho I \frac{S}{N}$$
 
-Over time, $\frac {S}{N}$ declines to 0, and the growth rate of infections goes to zero. By itself, this dynamic is essentially logistic. In fact, if there were only two states ("infected" and "susceptible"), we could rewrite as $$\tag{9} \frac{dI}{dt} = \kappa \rho I \frac{N-I}{N}=\kappa \rho I (1 - \frac{I}{N})$$ which is mathematically identical to the most common logistic growth model used in biology and ecology. On its 
-At this point, we need to point out that there is a stringent assumption here. That is, this probability is homogeneous across the population and can be represented by the proportion $\frac{S}{N}$. This is the so-called "law of mass action" imported from equilibrial dynamics in chemistry and physics. In this context, it requires the notion that populations are *well mixed*. The real world can get in the way of this being a good assumption when there is strong spatial structure, strong heterogeneity in the population, and so forth.   
+Over time, $\frac {S}{N}$ declines to 0, and the growth rate of infections goes to zero. By itself, this dynamic is essentially logistic. In fact, if there were only two states ("infected" and "susceptible"), we could rewrite as $$\tag{9} \frac{dI}{dt} = \kappa \rho I \frac{N-I}{N}=\kappa \rho I (1 - \frac{I}{N})$$ which is mathematically identical to the most common logistic growth model used in biology and ecology.At this point, we need to point out that there is a stringent assumption here. That is, this probability is *effectively* homogeneous across the population and can be represented by the proportion $\frac{S}{N}$. This is the so-called "law of mass action" imported from equilibrial dynamics in chemistry and physics. In reality, we can allow for lots of microscale variation in this probability. As long as the variations are sufficiently well-behaved, the emergent macroscale behavior can be captured by this fraction. In this context, we require the notion that populations are, among other things, *well mixed*. The real world can get in the way of this being a good assumption when there is strong spatial structure, strong heterogeneity in the population, and so forth.   
 
 Another thing happens though. Infected individuals either die or recover and become resistant. The simplest assumption here is that death and recovery are also both first-order processes, so we subtract them from the growth rate and complete our differential equation. For now, I am going to pretend that no one dies (yay!) and people just become resistant, as the math fundamentally does not change either way: $$\tag{10} \frac {dI}{dt} = \kappa \rho I \frac{S}{N} - \nu I$$
 
@@ -93,9 +92,9 @@ As the pandemic proceeds, the number of susceptibles presumably declines, which 
 # Recovering the full SIR model 
 
 The rest of this tutorial will be brief. We complete our model with understanding the disease by considering the three pools separately, in the order S-I-R. 
-$$\tag {12} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
-$$\tag {13} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
-$$\tag {14} \frac {dR}{dt} = \nu I $$
+$$\tag {13} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
+$$\tag {14} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
+$$\tag {15} \frac {dR}{dt} = \nu I $$
 This represents a system of three coupled ODEs. We have removal of Susceptibles by infection, already derived in detail. The initial condition is $S[0] = N$. The dynamics of the Infected pool have already been dissected in detail. Then we simply add an equation for the change in Recovered/Resistant pool which receives everyone dropping out of the Infected pool. 
 
 The astute reader will notice that our development actually only has 3 parameters, all of which go into the dimensionless ratio $R_0$. This is why $R_0$ is so widely discussed. It compactly summarizes all the information present in our simplest theoretical model of how infectious diseases work. 
@@ -122,4 +121,4 @@ Coming soon.
 
 # Acknowledgements
 
-In progress: Wayne Wilson, Philip Shirk, 
+In progress: Wayne Wilson, Philip Shirk, Andrew Lyjak,  
