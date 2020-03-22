@@ -5,15 +5,15 @@
 ### Verity et al. 2020 for onset-to-death, onset-to-discharge
 
 days <- 360
-init_pop <- 3*10^5
-init_sick <- round(7/0.07)
+init_pop <- 243336
+init_sick <- 500
 k <- 5 # #people exposed per infected per day 
-p <- 0.03 # probability of transmission from infected to susceptible 
+p <- 0.02 # probability of transmission from infected to susceptible 
 
 alpha <- (k*p)
 hr <- 0.05 # Hospitalization as % of infected with SARS-COV2 
 IFR <- hr*0.15 # Overall CFR as product of % of hospitalized patients 
-incubate <- 14 # Length of incubation before hospitalization 
+incubate <- 21 # Length of incubation before hospitalization 
 stay <- 15 # Length of time of hospitalization to death or discharge 
 # population 
 
@@ -32,7 +32,7 @@ dt <- 1 # Can toggle as needed if numerical instability crops up
 # Partitioning of hospitalized to dead/recovered c/v_h
 
 
-# R_0 <- alpha/(h+v_nh) = 2.44 (I think!) 
+# R_0 <- alpha/(h+v_nh) = 2.05 (I think!) 
 
 S <- rep(0,days/dt)
 I <- rep(0,days/dt)
@@ -66,7 +66,13 @@ for(i in 2:(days/dt)){
 
 plot(seq(1,days/dt,1),I,type = 'lwd')
 plot(seq(1,days/dt,1),H,type = 'lwd')
+
+round(H)
 plot(seq(1,days/dt,1),Dead,type = 'lwd')
+plot(seq(1,days/dt,1),Dead/I,type='lwd')
+
+plot(seq(1,75,1),Dead[1:75]/I[1:75],type='lwd')
+
 
 #plot(seq(1,days/dt,1),H,type = 'lwd')
 Dead[360/dt]/init_pop # 0.7% overall mortality 
