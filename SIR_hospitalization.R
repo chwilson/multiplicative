@@ -6,8 +6,8 @@
 
 days <- 360
 init_pop <- 243336
-init_sick <- 500
-k <- 5 # #people exposed per infected per day 
+init_sick <- 1000
+k <- 7 # #people exposed per infected per day 
 p <- 0.02 # probability of transmission from infected to susceptible 
 
 alpha <- (k*p)
