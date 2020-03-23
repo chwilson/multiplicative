@@ -84,3 +84,23 @@ summary(lm(log(dead)~seq(1,30,1)))
 # Answer is: NO! IN fact, it is increasing
 # So...yea. All signs suggest, US death toll about to go up a LOT. 
 
+
+##### Stan model 
+SIR_data <- list(deaths = nat_ts$deaths, N = nrow(nat_ts),
+                 v_mean = 0.075, v_scale = 0.025, 
+                 R0_mean = 3, R0_scale = 0.75, 
+                 psi_mean = 0.04, psi_scale = 0.02,
+                 sigmaD_scale = 10)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+
+SIR_mod <- stan(file = "SIR_early2.stan", data = SIR_data, 
+                chains = 1, iter = 500)
+
+
+
+
+
+
