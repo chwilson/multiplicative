@@ -1,0 +1,349 @@
+---
+title: "SIR Models and US Covid Data"
+author: "Chris H Wilson"
+date: "3/26/2020"
+output:
+  html_document: 
+    toc: true 
+    toc_depth: 2 
+  pdf_document: default
+  word_document: default
+
+---
+
+```{r setup, include=FALSE}
+
+  
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr); library(ggplot2); library(lubridate); library(cowplot)
+knitr::opts_knit$set(eval.after = 'fig.cap')
+
+```
+
+# Background and Goals 
+
+As I write this, the United States is currently in an early, rapid, *exponential* phase of growth of the Covid-19 disease caused by the SARS-CoV2 virus. In an earlier piece, I explained the derivation of a commonly discussed quantity "$R_0$", and derived the foundational equations of epidemiology from first principles, the so-called SIR model (https://rpubs.com/chwilson101/587211). In this essay, I want to discuss how this model framework informs on what we are seeing with Covid-19. In particular, I will show how surprisingly well the data so far cohere with our theoretical expectations, and then I will fit some models to data and generate *short term* forecasts on that basis. 
+
+*Long term*, there are too many unknowns to sling around confident forecasts. Our uncertainties are not just in the relevant parameters, but in how to structurally formulate models that accomodate enough of the real world to be useful. As in climate science, a chief source of uncertainty hinges on human actions. What kind of further control measures will be imnplemented and with what degree of competence? Will people in their communities go along with interventions or try to skirt them? As I concluded in my last piece, **the history of this pandemic is ours to write**. It is not written into the equations or math that follow. 
+
+# Current Situation 
+
+First, let's look at a time series of confirmed positive cases of Covid-19 in the United States, accompanied by the corresponding deaths (Fig. 1).  
+
+
+```{r US national covid time series, fig.cap = cap, out.width = "65%",echo = F, verbose = F, message = F}
+
+UScovid <- read.csv(url("http://coronavirusapi.com/time_series.csv"),header=T)
+UScovid$Date <- ymd(UScovid$date)
+UScovid$day <- julian(UScovid$Date)-min(julian(UScovid$Date))+1
+
+p1 <- ggplot(UScovid, aes(x=Date,y=positive)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=18) + ylab("Confirmed Cases") + xlab("") + geom_smooth(se=F,size=0.8,color = "black") 
+
+p2 <- ggplot(UScovid, aes(x=Date,y=deaths)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme_bw(base_size=18) + ylab("Deaths") + 
+  xlab("") + geom_smooth(se=F)+ geom_smooth(se=F,size=0.8,color = "black")
+
+plot_grid(p1,p2,nrow=2,labels="auto", rel_heights = 0.1)
+
+cap <- "$\\textit{Figure 1: Covid-19 in the United States. a) confirmed cases over time, and b) deaths over time. Data courtesy of: http://coronavirusapi.com/}$"
+
+```
+
+What we are seeing is clearly an exponential increase in both confirmed cases over time, as well as in mortality (deaths). There has also been a substantial problem in that the US response vis a vis testing has lagged other more competent nations, due to our political dysfunction. Here we see a plot of tests over time, normalized by population (Fig. 2): 
+
+
+```{r US national covid testing, fig.cap = cap, out.width = "65%",echo = F, verbose = F, message = F}
+USpop <- 330149796 
+SKorea_tests <- 348582 
+SKorea_pop <- 51709098
+suppressWarnings(print(ggplot(UScovid, aes(x=Date,y=tested/USpop)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("Tests/Capita") + 
+  xlab("") + geom_smooth(se=F,size=0.8,color = "black") + 
+  geom_hline(aes(yintercept = SKorea_tests/SKorea_pop),color="red", linetype = "dashed")))
+
+cap <- "$\\textit{Figure 2: Covid-19 testing in the United States normalized by population,compared to the current status in South Korea (as of March 24th 2020)}$"
+
+```
+
+Clearly, we have a lot of catching up to do in our testing coverage before we can really get this pandemic under control. In addition to prioritization of resources, greater testing coverage will also enable a vigorous 'test and trace' strategy, which is going to be crucial for transitioning out of lockdowns safely. 
+
+```{r US Covid cases versus tests, echo = F, message = F,include=F}
+library(scales)
+print(ggplot(UScovid, aes(x=tested,y=positive)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("# positive") + 
+  xlab("# tested") + geom_smooth(se=F,size=0.8,color = "black") +
+  geom_abline(aes(intercept=0,slope=1),color="red") + scale_y_continuous(limits = c(0,500000),breaks = seq(0,500000,100000),labels = function(x) format(x, scientific = TRUE)))
+
+
+
+
+```
+
+
+
+
+
+# Understanding the Current Dynamics 
+
+Organizational and political desiderata aside, Fig. 1 clearly shows that we are still in the exponentially increasing phase of this infection. Returning to our SIR equations briefly, 
+
+$$\tag {1} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
+$$\tag {2} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
+$$\tag {3} \frac {dR}{dt} = \nu I $$
+
+If we focus in on equation 2 (for the Susceptible pool), it is evident that *early in a pandemic* $\frac{S}{N} \approx 1$, and hence we can re-write the susceptible dynamics as:
+
+$$\tag {4} \frac {dI}{dt} = \nu  (R_0-1) I $$
+which is clearly of exponential form, with exponential growth coefficient equal to $\nu  (R_0-1)$. Qualitatively then, what we see in Fig. 1 makes sense and coheres with theoretical expectations. In fact, it is kind of surprising how well the data at the national level follow this smooth exponential curve. To illustrate, let us look at a simple OLS linear regression model where we take the $log(cases)$ as our response variable, and $day$ as our predictor variable (Table 1)
+
+```{r OLS regression on positive cases, echo = F, message = F, fig.cap = cap}
+library(arm)
+m1 <- lm(log(positive)~day,UScovid)
+display(m1,digits=2)
+cap <- "$\\textit{Table 1: OLS regression of the log of positive Covid-19 cases against day in the United States}$"
+```
+
+The regression formula is: 
+
+$$\tag {5} log(positive_i) = \beta_0 + \beta_1 day_i + \epsilon_i$$
+As we can see in Table 1, our estimates for $beta_0$ and $beta_1$ are super precise, and the overall $R^2$ of the model is 0.99! Mathematically, regressing the log() of a response variable is equivalent to fitting an exponential curve, since equation 5 can be re-written as, 
+
+$$\tag {6} positive_i = e^{(\beta_0 + \beta_1 day_i)} + \epsilon_i$$
+That being the case, we can draw a simple curve fit using our fitted parameter estimates and then overlay our data
+
+$$\tag {7} positive_i = e^{5.69}e^{0.29 day_i} $$
+which looks like, 
+
+```{r simple exponential fit to positive cases, echo = F, message = F, fig.cap = cap}
+
+exp_curve <- function(B1,B2,x) {
+  value <- exp(B1)*exp(B2*x);
+  return(value);
+}
+
+ ggplot(UScovid) + geom_point(aes(x=day,y=positive)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("Confirmed Cases") + xlab("")  + 
+  stat_function(fun = exp_curve, args = list(B1 = coef(m1)[1],B2=coef(m1)[2]))
+ 
+ cap <- "$\\textit{Figure 3: Fitted exponential model against national Covid-19 positive cases}$"
+
+```
+
+We can see in Fig. 3 that our naive, basic exponential model fits pretty well. However, there are definitely some qualitative discprepancies to note. First, the model is underpredicting days 14-18, and then overpredicting by the last two days (19-20). This suggests that the curvature is too great, and thus that our exponent estimate is likely *too high*. There are a couple possible explanations for this. First is that we need to account for the widespread expansion of testing. Second, we could be entering a phase of the epidemic growth where exponential behavior begins to give way to more linear-ish and eventually diminishing towards a peak.
+
+We will return to these possibilities, but next let's look at mortality. First, the regression model (which is set up and interpreted the same as above), and then a plot of fitted model. Note that because the first 4 days in the dataset were static, parameters fit to an exponential model are screwy so I dropped those data (better solutions exist, but right now, faster is better):  
+
+```{r OLS regression on Covid mortality, echo = F, message = F, fig.cap = cap}
+UScovidMort <- UScovid %>% filter(day > 3)
+m2 <- lm(log(deaths)~day,UScovidMort)
+display(m2,digits=2)
+
+cap <- "$\\textit{Table 2: OLS regression of the log of Covid deaths against day in the United States}$"
+
+```
+
+```{r simple exponential fit to deaths, echo = F, message = F, fig.cap = cap}
+ ggplot(UScovidMort) + geom_point(aes(x=day,y=deaths)) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("Covid Deaths") + xlab("")  + 
+  stat_function(fun = exp_curve, args = list(B1 = coef(m2)[1],B2=coef(m2)[2]))
+ 
+ cap <- "$\\textit{Figure 4: Fitted exponential model against national Covid-19 deaths}$"
+
+```
+
+Once again we have exceedingly high $R^2$ and precision in these estimates. Interestingly, if anything, the curvature is now too low, and hence our exponential model extrapolation is too conservative...**for the time being**. So, the exponent for positive cases over time is 0.29, and for mortality is 0.24. Very close. These yield estimated doubling times of $log(2)/0.29 \approx 2.4$ and $log(2)/0.24 \approx 2.9$ days respectively. 
+
+What about that increase in testing coverage? Certainly, I would expect that to have impacted the numbers for the positive cases over time. Mortality data should be relatively less impacted by that. Here is a quick model including the # of tests as a covariate alongside day. 
+
+```{r OLS regression on positive cases with testing control, echo = F, message = F, fig.cap = cap}
+
+#m3 <- glm(positive~day + offset(log(tested)),family = poisson(link = log),UScovid)
+m3 <- lm(log(positive)~day + log(tested), UScovid)
+display(m3,digits=2)
+
+cap <- "$\\textit{Table 3: OLS regression of the log of Covid cases against day controlling for testing in the United States}$"
+
+```
+
+```{r fitted OLS model with log(tested) and day, echo = F, message = F, fig.cap = cap}
+
+exp_curve2 <- function(x,B1,B2,B3,off) {
+  value <- exp(B1)*exp(B2*x)*exp(B3*log(off));
+  return(value);
+}
+
+
+red = UScovid %>% group_by(day) %>% summarize(off = mean(tested))
+tests <- red[,"off"][[1]]
+
+dd <- expand.grid(x=1:20)
+ dd %>% 
+     mutate(c=exp_curve2(x=x,B1 = coef(m3)[1],B2=coef(m3)[2],B3 = coef(m3)[3],off=tests)) ->
+  dd2
+
+ ggplot(dd2,aes(x,y=c))+
+            geom_path() + geom_point(data=UScovid,aes(x=day,y=positive)) +
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("Confirmed Cases") + xlab("")
+ 
+  cap <- "$\\textit{Figure 5: Fitted exponential model including log(#tested) against national positive Covid-19 cases}$"
+
+```
+
+This does seem to improve matters a little bit. In particular, we have ironed out most of the issues with curvature within this range of data. The next question is - if we subdivide this time series (say take days 1:15), will we get comparable estimates 
+
+```{r testing the exponential model with offset, echo = F, message = F, fig.cap = cap}
+
+m4 <- lm(log(positive)~day + log(tested), UScovid %>% filter(day < 16))
+display(m4,digits=2)
+
+
+cap <- "$\\textit{Table 4: preliminary check of forecasting ability}$"
+
+```
+
+The coefficients overall look very similar. The point estimate for day is 0.16 (compared to 0.15 for full time series), and the log(tested) coefficient is 0.45 (compared to 0.53). Everything is well within reasonable +/- 1 SE uncertainty intervals. 
+
+```{r plotting forecast model, echo = F, message = F,fig.cap = cap}
+red = UScovid %>% group_by(day) %>% summarize(off = mean(tested))
+tests <- red[,"off"][[1]]
+
+dd <- expand.grid(x=1:20)
+ dd %>% 
+     mutate(c=exp_curve2(x=x,B1 = coef(m4)[1],B2=coef(m4)[2],B3 = coef(m4)[3],off=tests)) ->
+  dd2
+
+ ggplot(dd2,aes(x,y=c))+
+            geom_path() + geom_point(data=UScovid,aes(x=day,y=positive)) +
+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=20) + ylab("Confirmed Cases") + xlab("")
+ 
+   cap <- "$\\textit{Figure 6: Exponential model fitted to days 1:15 against national positive Covid-19 cases for whole time series}$"
+
+```
+
+
+
+
+
+For a rough, back-of-the-envelope approach to reconciling with our basic SIR theory, consider the following equation
+
+$$\tag {8} \beta_{day} = \nu  (R_0-1) $$
+hence, 
+
+$$\tag {9} R_0 = \frac {\beta_{day}}{\nu} + 1  $$
+and, assuming a mean infectious period of around 20 days (hence $\nu = 0.05$) we plug in values $R_0$ = 0.16/0.05 + 1 and find an $R_0$ around 4, on the upper end of what is currently being discussed. Unfortunately, in many contexts, the exact mathematical definition of $R_0$ is being neglected, so it is not always clear what specifically is meant, or how the number was arrived at. In more complicated models (unlike the development I demonstrated here: https://rpubs.com/chwilson101/587211), there often is no simply closed-form solution for $R_0$. 
+
+At any rate, taking 0.16 as our estimate, we have $log(2)/0.16$ or around 4.3 days as our estimated "true" doubling time. 
+
+
+
+```{r}
+library(readr)
+#x <- getURL("https://raw.github.com/nytimes/covid-19-data/blob/master/us-counties.csv")
+urlfile="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+UScounty<-read_csv(url(urlfile))
+str(UScounty)
+UScounty$Date <- ymd(UScounty$date)
+UScounty$jday <- julian(UScounty$Date)-min(julian(UScounty$Date))
+UScounty$County <- as.factor(UScounty$county)
+UScounty$State <- as.factor(UScounty$state)
+
+# max(UScounty$Date) which date is most recent in data 2020-03-26
+
+?scale_x_discrete
+ggplot(UScounty %>% filter(State == "New York", County == "New York City"), aes(x=Date, y = deaths)) + geom_line() +
+  theme_bw(base_size = 15) + 
+  ggtitle("Covid-19 Deaths in New York City")
+
+
+
+
+summary(lm(log(deaths)~jday,UScounty %>% filter(State == "New York", County == "New York City",deaths>0)))
+
+
+ggplot(UScounty %>% filter(State == "Michigan", County == "Washtenaw"), aes(x=jday, y = cases, color = County)) + geom_line() +
+  theme_bw()
+
+ggplot(UScounty %>% filter(State == "Georgia", County == "Hall"), aes(x=Date, y = cases, color = County)) + geom_line() +
+  theme_bw()
+
+
+ggplot(UScounty %>% filter(State == "Florida", County == "Alachua"), aes(x=Date, y = cases, color = County)) + geom_line() +
+  theme_bw()
+
+summary(lm(log(cases)~jday,UScounty %>% filter(State == "Florida", County == "Alachua")))
+log(2)/0.27 # doubling 2.5 days 
+
+alachua_ts <- UScounty %>% filter(State == "Florida", County == "Alachua")
+str(alachua_ts)
+alachua_ts$day0 <-alachua_ts$jday - min(alachua_ts$jday)
+
+em <- lm(log(cases)~jday,UScounty %>% filter(State == "Florida", County == "Alachua"))
+summary(em) 
+sqrt(vcov(em)[2,2])
+coef(em)[2]
+
+
+# 7-day moving window 
+begin_seq <- seq(0,15-7,1)
+end_seq <- seq(7,15,1)
+Date_end <- alachua_ts$Date[end_seq+1]
+
+doubles <- rep(0,length(begin_seq))
+se_doubles <- rep(0,length(begin_seq))
+for(i in 1:length(begin_seq)){
+  df <- alachua_ts %>% filter(day0>begin_seq[i]-1,day0<end_seq[i]+1)
+  em <- lm(log(cases)~day0,df)
+  doubles[i]<- coef(em)[2]
+  se_doubles[i] <- sqrt(vcov(em)[2,2])
+}
+
+alachua_df <- data.frame(Date=as.factor(Date_end),doubles=doubles,se=se_doubles,end_day=end_seq)
+ggplot(alachua_df,aes(x=Date)) + geom_point(aes(y=doubles)) + 
+  geom_segment(aes(xend=Date,y=doubles-2*se,yend=doubles+2*se)) + theme_bw(base_size=15) + ylab("8-day moving average exponential growth") + xlab("") + ggtitle("Covid-19 in Alachua County")
+
+
+pkgbuild::has_build_tools(debug = TRUE)
+
+mem <- stan_lmer(log(cases)~ jday + (1+jday|State/County),UScounty)
+
+stan_df <- list(cases = UScounty$cases, day = UScounty$jday, county = as.integer(UScounty$County),
+                state = as.integer(UScounty$State), N = as.integer(length(UScounty$cases)),
+                K = as.integer(length(unique(UScounty$State))),KK = as.integer(length(unique(UScounty$County))))
+
+covid_mlm <- stan(file = "Covid_national_multilevel.stan", data = stan_df,chains = 1, iter =500)
+
+library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+
+Rcpp::sourceCpp(code = 
+'
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+int throw_exception() { 
+  std::stringstream errmsg; errmsg << "this is the expected behavior";
+  throw std::domain_error(errmsg.str()); 
+  return 0;
+}
+'
+)
+
+throw_exception()
+
+
+dlls <- getLoadedDLLs()
+paths <- vapply(dlls, `[[`, "path", FUN.VALUE = character(1))
+invisible(lapply(paths, function(path) {
+  
+  if (!file.exists(path))
+    return(FALSE)
+  
+  output <- system(paste("otool -L", shQuote(path), "| grep libc++ || true"),
+                   intern = TRUE)
+  if (length(output) == 0)
+    return(FALSE)
+  
+  writeLines(paste0(path, ":"))
+  writeLines(output)
+  
+}))
+
+```
+
