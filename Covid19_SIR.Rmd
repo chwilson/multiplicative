@@ -15,7 +15,9 @@ output:
 
   
 knitr::opts_chunk$set(echo = TRUE)
-library(dplyr); library(ggplot2); library(lubridate); library(cowplot)
+library(dplyr); library(lubridate); library(cowplot);
+library(arm); library(readxl)
+
 knitr::opts_knit$set(eval.after = 'fig.cap')
 
 ```
@@ -95,7 +97,6 @@ $$\tag {4} \frac {dI}{dt} = \nu  (R_0-1) I $$
 which is clearly of exponential form, with exponential growth coefficient equal to $\nu  (R_0-1)$. Qualitatively then, what we see in Fig. 1 makes sense and coheres with theoretical expectations. In fact, it is kind of surprising how well the data at the national level follow this smooth exponential curve. To illustrate, let us look at a simple OLS linear regression model where we take the $log(cases)$ as our response variable, and $day$ as our predictor variable (Table 1)
 
 ```{r OLS regression on positive cases, echo = F, message = F, fig.cap = cap}
-library(arm)
 m1 <- lm(log(positive)~day,UScovid)
 display(m1,digits=2)
 cap <- "$\\textit{Table 1: OLS regression of the log of positive Covid-19 cases against day in the United States}$"
@@ -172,7 +173,7 @@ exp_curve2 <- function(x,B1,B2,B3,off) {
 red = UScovid %>% group_by(day) %>% summarize(off = mean(tested))
 tests <- red[,"off"][[1]]
 
-dd <- expand.grid(x=1:20)
+dd <- expand.grid(x=1:length(tests))
  dd %>% 
      mutate(c=exp_curve2(x=x,B1 = coef(m3)[1],B2=coef(m3)[2],B3 = coef(m3)[3],off=tests)) ->
   dd2
@@ -203,7 +204,7 @@ The coefficients overall look very similar. The point estimate for day is 0.16 (
 red = UScovid %>% group_by(day) %>% summarize(off = mean(tested))
 tests <- red[,"off"][[1]]
 
-dd <- expand.grid(x=1:20)
+dd <- expand.grid(x=1:length(tests))
  dd %>% 
      mutate(c=exp_curve2(x=x,B1 = coef(m4)[1],B2=coef(m4)[2],B3 = coef(m4)[3],off=tests)) ->
   dd2
@@ -232,7 +233,7 @@ At any rate, taking 0.16 as our estimate, we have $log(2)/0.16$ or around 4.3 da
 
 
 
-```{r}
+```{r getting and visualizing whole US county data, echo = F, message = F}
 library(readr)
 #x <- getURL("https://raw.github.com/nytimes/covid-19-data/blob/master/us-counties.csv")
 urlfile="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
@@ -245,19 +246,36 @@ UScounty$State <- as.factor(UScounty$state)
 
 # max(UScounty$Date) which date is most recent in data 2020-03-26
 
-?scale_x_discrete
+### Areas 
+#library(readxl)
+
+county_ERS <- read_csv("ERS_county_data.csv")
+str(county_ERS)
+
+cols_select <- c("POP_ESTIMATE_2018","fips","State","Area_Name","Rural-urban_Continuum Code_2013")
+cERS <- county_ERS[,cols_select]
+str(cERS)
+colnames(cERS) <- c("population","fips","State","County","Density_Code")
+
+super <- merge(UScounty,cERS,by="fips")
+str(super)
+
+
 ggplot(UScounty %>% filter(State == "New York", County == "New York City"), aes(x=Date, y = deaths)) + geom_line() +
   theme_bw(base_size = 15) + 
   ggtitle("Covid-19 Deaths in New York City")
 
 
 
-
 summary(lm(log(deaths)~jday,UScounty %>% filter(State == "New York", County == "New York City",deaths>0)))
 
 
-ggplot(UScounty %>% filter(State == "Michigan", County == "Washtenaw"), aes(x=jday, y = cases, color = County)) + geom_line() +
-  theme_bw()
+ggplot(super %>% filter(State.x %in% c("Michigan","Florida"), County.x %in% c("Washtenaw","Alachua", "Miami-Dade","Wayne")), aes(x=Date, y = 10^4*(cases/population), color = County.x)) + geom_line() + geom_point() + 
+  theme_bw(base_size=15) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "2 days")) + xlab("") + ylab("Cases (#/10000)") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
 
 ggplot(UScounty %>% filter(State == "Georgia", County == "Hall"), aes(x=Date, y = cases, color = County)) + geom_line() +
   theme_bw()
@@ -346,4 +364,39 @@ invisible(lapply(paths, function(path) {
 }))
 
 ```
+
+```{r distribution of deaths across counties, echo = F, message = F}
+
+str(UScounty)
+ggplot(data = UScounty %>% filter(jday == max(jday)-1),aes(x=deaths)) + 
+  geom_histogram(stat="density")
+
+bins <- seq(0,1.2*max(UScounty$cases),25)
+counts <- rep(0,length(bins))
+for(i in 1:length(bins)){
+counts[i] <- as.numeric(UScounty %>% filter(jday == max(jday)-1,cases>=bins[i],cases<bins[i+1]) %>%  summarize(n()))
+}
+print(counts)
+
+zipf_df <- data.frame(counts=counts,cases=bins)
+zipf_df2 <- zipf_df %>% filter(counts>0)
+
+ggplot(zipf_df2, aes(x=log10(cases),y=log10(counts))) + geom_point()
+
+ggplot(UScounty %>% filter(cases>500), aes(x=cases)) + geom_histogram(bins=50)
+UScounty %>% filter(cases>500) %>% summarize(alpha_hat = n()/sum(log(cases)),
+                                           se_alpha = alpha_hat/sqrt(n()))
+
+# Tail exponent = 0.14
+# i.e. infinite mean!!! 
+
+
+quantile((UScounty %>% filter(cases>0))$cases,probs=c(0.1,0.5,0.9))
+
+```
+
+
+
+
+
 
