@@ -1,0 +1,281 @@
+---
+title: "SIR_ScaleTransition"
+author: "Chris H. Wilson"
+date: "3/30/2020"
+output:
+  html_document: 
+    toc: true 
+    toc_depth: 2 
+  pdf_document: default
+  word_document: default
+
+---
+
+```{r setup, include=FALSE}
+
+  
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr); library(lubridate); library(cowplot);
+library(arm); library(maps)
+library(dplyr); library(readr)
+
+
+knitr::opts_knit$set(eval.after = 'fig.cap')
+
+```
+
+# Background and Goals 
+
+As I write this, the United States is currently in an early, rapid, *exponential* phase of growth of the Covid-19 disease caused by the SARS-CoV2 virus. In an earlier piece, I explained the derivation of a commonly discussed quantity "$R_0$", and derived the foundational equations of epidemiology from first principles, the so-called SIR model (https://rpubs.com/chwilson101/587211). In this essay, my goal is simple. I wish to demonstrate that the spatial aggregation/scaling properties of SIR models is severely challenged by the underlying distributions of the relevant quantities. In effect there are not just two but three reasons why epidemiological models in the 'SIR family' should be fit to maximally granular data, and that 'mean field' implementations should be thrown into severe doubt: 
+
+1. Potential violation of the mass-action assumption (https://rpubs.com/chwilson101/587211)
+2. Explicit impacts of spatial configurations (e.g. Malaria, other models), and 
+3. The distributions of relevant quantities are poorly behaved, which frustrates mean field approaches indepedently of points 1 & 2. 
+
+First, let us consider the current situation. 
+
+# Current Situation 
+
+First, let's look at a time series of confirmed positive cases of Covid-19 in the United States, accompanied by the corresponding deaths (Fig. 1).  
+
+
+```{r US national covid time series, fig.cap = cap, out.width = "65%",echo = F, verbose = F, message = F}
+
+UScovid <- read.csv(url("http://coronavirusapi.com/time_series.csv"),header=T)
+UScovid$Date <- ymd(UScovid$date)
+UScovid$day <- julian(UScovid$Date)-min(julian(UScovid$Date))+1
+
+p1 <- ggplot(UScovid, aes(x=Date,y=positive)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + theme_bw(base_size=18) + ylab("Confirmed Cases") + xlab("") + geom_smooth(se=F,size=0.8,color = "black") 
+
+p2 <- ggplot(UScovid, aes(x=Date,y=deaths)) + geom_point() + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme_bw(base_size=18) + ylab("Deaths") + 
+  xlab("") + geom_smooth(se=F)+ geom_smooth(se=F,size=0.8,color = "black")
+
+plot_grid(p1,p2,nrow=2,labels="auto", rel_heights = 0.1)
+
+cap <- "$\\textit{Figure 1: Covid-19 in the United States. a) confirmed cases over time, and b) deaths over time. Data courtesy of: http://coronavirusapi.com/}$"
+
+```
+
+What we are seeing suggests an exponential increase in both confirmed cases over time, as well as in mortality (deaths). As we see below, early increase is expected to be exponential under basic SIR theory. 
+
+But consider that these national data actually represent aggregates over many states, which in turn aggregate counties and cities. The true distribution of cases, as well as the qualitative patterns of increase, vary considerably in space. 
+
+```{r National Map of Covid Cases, echo = F, message = F}
+
+### NYT Covid Data 
+urlfile="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+UScounty<-read_csv(url(urlfile))
+UScounty$Date <- ymd(UScounty$date)
+UScounty$jday <- julian(UScounty$Date)-min(julian(UScounty$Date))
+UScounty$County <- as.factor(UScounty$county)
+UScounty$State <- as.factor(UScounty$state)
+
+# max(UScounty$Date) which date is most recent in data
+
+county_ERS <- read_csv("ERS_county_data.csv")
+cols_select <- c("POP_ESTIMATE_2018","fips","State","Area_Name","Rural-urban_Continuum Code_2013")
+cERS <- county_ERS[,cols_select]
+colnames(cERS) <- c("population","fips","State","County","Density_Code")
+super <- merge(UScounty,cERS,by="fips")
+
+super$County.y <- as.factor(super$County.y)
+super$State.y <- as.factor(super$State.y)
+
+super[which(super$County.x=="New York City"),"population"] <-  8398748 # from Wikipedia, 03/29/20
+super[which(super$County.x=="Kansas City"),"population"] <- 491918 # ditto 
+
+
+
+
+### Getting at underlying map data: 
+MainState <- map_data("state")
+MainCounty <- map_data("county")
+colnames(MainCounty)[5:6] <- c("state", "county")
+
+### Merging with the Covid Data 
+MainCountys <- MainCounty %>% left_join(super,by = c("state","county"))
+
+# Oy gevalt. Need to decapitalize the character string in super
+library(R.utils)
+super$state <- decapitalize(super$state)
+super$county <- decapitalize(super$county)
+
+## Need to code something that goes through an decapitalizes every letter after a hyphen: 
+super$county[which(super$county=="miami-Dade")] <- rep(paste("miami-dade"),rep=length(super$county[which(super$county=="miami-Dade")]))
+
+MainCountys <- MainCounty %>% left_join(super%>% filter(Date== max(UScounty$Date)),by = c("state","county"))
+
+county_plot <- ggplot() + 
+  geom_polygon(data=MainCounty, aes(x=long, y=lat, group=group),
+                color="black", fill=NA) + 
+ geom_polygon(data=MainCountys, aes(x=long, y=lat,group=group,fill=10^4*(cases/population)),
+              color="black")
+
+county_plot <- county_plot + scale_fill_continuous(name="Covid-19 Cases (per 10000)", 
+            low = "lightblue", high = "darkblue",limits = c(0,40), 
+            breaks=c(10,20,30,40), na.value = "grey25") +
+labs(title="Covid-19 in the Mainland United States", subtitle = 
+                 "Date: March 27th 2020, Covid Data: NYT, County Data: US Census/USDA ERS, creator: Chris H. Wilson")
+
+
+county_plot <- county_plot + 
+ # theme(legend.position = "bottom") +
+  scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Cases (per 10000)") +
+labs(title="Covid-19 in the Mainland United States", subtitle = 
+                 "Date: March 29th 2020, Covid Data: NYT, County Data: US Census/USDA ERS, creator: Chris H. Wilson")
+
+
+# To do: Add NYC.  
+
+
+print(county_plot)
+```
+
+The disaggregated picture clearly reveals a lot of spatial structure in this pandemic. Some counties are getting wrecked and currently (March 30th) have as many as 88/10K cases (Westchester, NY), whereas most have far far fewer. The early exponential *rates* of increase also show extremely fat-tailed distributions (not shown). 
+
+```{r Distribution of Cases across counties, echo = F, message = F, fig.cap = cap}
+ggplot(super %>% filter(10^4*(cases/population)>1,Date == max(UScounty$Date)), aes(x=10^4*(cases/population))) + geom_histogram(bins=100) + xlab("Confirmed Cases Covid-19 (/10^4)") + ggtitle("Distribution of Covid-19 on March 30th 2020") + theme_bw(base_size=15)
+
+cap <-  "$\\textit{Figure 3: Distro of Covid-19 in US Counties on March 30th 2020, data courtesy of NYT}$"
+
+```
+
+```{r fitting Pareto distro across nation, echo = F, message = F,fig.cap = cap}
+Table_1 <- super %>% group_by(Date) %>% filter(10^4*(cases/population)>1) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+#print(Table_1[4:21,])
+# Check different distros, estimate Pareto (probably) in Stan with inverse-gamma prior on 
+# tail exponent. Plot over time alongside a sequence of maps. 
+# 1.26, se = 0.024
+
+
+
+```
+
+```{r fitting Pareto distro within states, echo = F, message = F}
+table_1 <- super %>% filter(Date == max(UScounty$Date)) %>% group_by(State.x) %>% filter(10^4*(cases/population)>1) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+## YUGE range of variation within States. The hardest hit states have the lowest exponents. A couple 
+# certainly < 1, and several probably < 1. Which means that no moments exist at all! This destroys 
+# the aggregation properties entirely. 
+```
+
+# Scaling Up: SIR Theory under Aggregation  
+
+To review, our SIR equations are: 
+
+$$\tag {1} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
+
+$$\tag {2} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
+$$\tag {3} \frac {dR}{dt} = \nu I $$
+
+If we focus in on equation 2 (for the Susceptible pool), it is evident that *early in a pandemic* $\frac{S}{N} \approx 1$, and hence we can re-write the susceptible dynamics as:
+
+$$\tag {4} \frac {dI}{dt} = \nu  (R_0-1) I $$
+
+which is clearly of exponential form, with exponential growth coefficient equal to $\nu  (R_0-1)$. Qualitatively then, what we see in Fig. 1 makes sense and broadly coheres with theoretical expectations (although it currently appears as though it is departing from exponential.
+
+
+# Case Study: New York 
+
+
+```{r}
+
+NYdata <- super %>% filter(State.x == "New York")
+NYdata <- NYdata %>% mutate(NormRate = 10^4*(cases/population))
+
+ggplot(NYdata, aes(x=jday,y=10^4*(cases/population),color=county)) + geom_point() + geom_line()
+
+ggplot(NYdata %>% filter(Date == max(super$Date),NormRate>2), aes(x=NormRate)) + 
+  geom_histogram()
+
+super %>% filter(State.x == "New York") %>% group_by(Date) %>%  filter(10^4*(cases/population)>2) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+
+```
+
+
+```{r}
+
+# Statewide observed rate
+ggplot(NYdata, aes(x=jday,y=(10^4*(cases/population)))) + geom_line()
+
+NYdataSUM <- NYdata %>% group_by(jday) %>% summarize(cases = sum(cases),pop = sum(population))
+# max(NYdataSUM$pop)
+
+summary(lm(log(10^4*(cases/max(NYdataSUM$pop)))~jday,NYdataSUM))
+
+# By County 
+
+N <- length(unique(NYdata$county))
+names <- unique(NYdata$county)
+county_rate <- rep(0,N)
+for(i in 1:N){
+ county_rate[i] <- coef(lm(log(10^4*(cases/population))~jday,NYdata %>% filter(county == names[i])))[2]
+}
+
+mean(county_rate,na.rm=T)
+hist(county_rate,nclass=20)
+
+
+# This value deviates substantially from that estimated from the statewide data, just as 
+# scale tranistion theory suggests it should. IOW, our estimates of R_0 do not behave in a way
+# that we would like to see! 
+
+```
+
+The "typical" county is not at all a useful concept here. The statewide data and estimates reflect a very heterogeneous distribution of underlying parameter values. 
+
+Both intervention and analysis should be focused at the county level, or even more granular where possible. The aggregation to state, and then national levels seriously distorts the meaning and interpretation of model parameters, and this would challenge efforts to predict or intervene. 
+
+
+```{r}
+library(gganimate)
+library(dplyr)
+library(purrr)
+library(maps)
+library(ggplot2)
+library(gganimate)
+
+
+MainCountys <- MainCounty %>% left_join(super,by = c("state","county"))
+
+myplots <- vector("list",5)
+for(i in 0:4){
+county_plot <- ggplot(data=MainCountys %>% filter(Date== max(UScounty$Date)-i*7), aes(x=long, y=lat,group=group,fill=10^4*(cases/population)),
+              color="black") +  geom_polygon() +
+
+  geom_polygon(data=MainCounty, aes(x=long, y=lat, group=group),
+                color="black", fill=NA) 
+
+#county_plot <- county_plot + scale_fill_continuous(name="Covid-19 Cases (per 10000)", 
+#            low = "lightblue", high = "darkblue",limits = c(0,40), 
+#            breaks=c(10,20,30,40), na.value = "grey25") +
+#labs(title="Covid-19 in the Mainland United States", subtitle = 
+#                 "Date: March 27th 2020)
+
+county_plot <- county_plot + 
+ # theme(legend.position = "bottom") +
+  scale_fill_viridis_c(option = "viridis", direction = -1,name="Cases/10K") +
+labs(title="Covid-19 in the Mainland United States", subtitle = paste(max(UScounty$Date)-i*7))
+
+myplots[[i+1]] <- county_plot
+
+}
+
+
+
+pdf(file = "US_CovidMaps.pdf",width = 12, height = 8)
+myplots
+dev.off()
+
+
+
+```
+
+
+
+
+
+

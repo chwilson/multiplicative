@@ -260,20 +260,40 @@ colnames(cERS) <- c("population","fips","State","County","Density_Code")
 super <- merge(UScounty,cERS,by="fips")
 str(super)
 
+super$County.y <- as.factor(super$County.y)
+super$State.y <- as.factor(super$State.y)
 
-ggplot(UScounty %>% filter(State == "New York", County == "New York City"), aes(x=Date, y = deaths)) + geom_line() +
+super[which(super$County.x=="New York City"),"population"] <-  8398748 # from Wikipedia, 03/29/20
+super[which(super$County.x=="Kansas City"),"population"] <- 491918 # ditto 
+
+ggplot(super %>% filter(State.x == "New York", County.x == "New York City"), aes(x=Date, y = 10^4*(cases/population))) + geom_line() +
   theme_bw(base_size = 15) + 
-  ggtitle("Covid-19 Deaths in New York City")
+  ggtitle("Covid-19 Cases in New York City")
 
 
 
-summary(lm(log(deaths)~jday,UScounty %>% filter(State == "New York", County == "New York City",deaths>0)))
 
 
-ggplot(super %>% filter(State.x %in% c("Michigan","Florida"), County.x %in% c("Washtenaw","Alachua", "Miami-Dade","Wayne")), aes(x=Date, y = 10^4*(cases/population), color = County.x)) + geom_line() + geom_point() + 
-  theme_bw(base_size=15) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "2 days")) + xlab("") + ylab("Cases (#/10000)") + 
+summary(lm(log(10^4*cases/population)~jday,super %>% filter(State.x == "Michigan", County.x == "Wayne",cases>0)))
+
+log(2)/0.47
+
+State.x %in% c("Michigan","Florida", "Louisiana", "New York"),
+
+
+super %>% filter(State.x %in% c("Michigan","Florida", "Louisiana", "New York"),County.x %in% c("Washtenaw","Alachua", "Miami-Dade","Wayne","Orleans", "New York City"))
+
+
+ggplot(super %>% filter(State.x %in% c("Michigan","Florida"), County.x %in% c("Washtenaw","Alachua","Wayne","Miami-Dade")), aes(x=Date, y = 10^4*(cases/population), color = State.x, group = interaction(State.x,County.x))) + geom_line() + geom_point(aes(shape=County.x)) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "1 days"))+
+  theme_bw(base_size=15) +   xlab("") + ylab("Cases (#/10000)") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+
+
+
+ggplot(super %>% filter(State.x %in% c("Michigan","Florida", "Louisiana", "New York"), County.x %in% c("Washtenaw","Alachua", "Miami-Dade","Wayne","Orleans", "New York City")), aes(x=Date, y = 10^4*(cases/population), color = State.x, group = interaction(State.x,County.x))) + geom_line() + geom_point(aes(shape=County.x)) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "2 days"))+
+  theme_bw(base_size=15) +   xlab("") + ylab("Cases (#/10000)") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
 
@@ -316,9 +336,11 @@ ggplot(alachua_df,aes(x=Date)) + geom_point(aes(y=doubles)) +
   geom_segment(aes(xend=Date,y=doubles-2*se,yend=doubles+2*se)) + theme_bw(base_size=15) + ylab("8-day moving average exponential growth") + xlab("") + ggtitle("Covid-19 in Alachua County")
 
 
-pkgbuild::has_build_tools(debug = TRUE)
-
-mem <- stan_lmer(log(cases)~ jday + (1+jday|State/County),UScounty)
+library(lme4)
+str(super)
+mem <- lmer(log(cases/population) ~ jday + Density_Code + (1+jday|State.x/County.x),super)
+summary(mem)
+ranef(mem)
 
 stan_df <- list(cases = UScounty$cases, day = UScounty$jday, county = as.integer(UScounty$County),
                 state = as.integer(UScounty$State), N = as.integer(length(UScounty$cases)),
@@ -330,38 +352,6 @@ library(rstan)
 options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 
-Rcpp::sourceCpp(code = 
-'
-#include <Rcpp.h>
-
-// [[Rcpp::export]]
-int throw_exception() { 
-  std::stringstream errmsg; errmsg << "this is the expected behavior";
-  throw std::domain_error(errmsg.str()); 
-  return 0;
-}
-'
-)
-
-throw_exception()
-
-
-dlls <- getLoadedDLLs()
-paths <- vapply(dlls, `[[`, "path", FUN.VALUE = character(1))
-invisible(lapply(paths, function(path) {
-  
-  if (!file.exists(path))
-    return(FALSE)
-  
-  output <- system(paste("otool -L", shQuote(path), "| grep libc++ || true"),
-                   intern = TRUE)
-  if (length(output) == 0)
-    return(FALSE)
-  
-  writeLines(paste0(path, ":"))
-  writeLines(output)
-  
-}))
 
 ```
 
@@ -390,13 +380,122 @@ UScounty %>% filter(cases>500) %>% summarize(alpha_hat = n()/sum(log(cases)),
 # Tail exponent = 0.14
 # i.e. infinite mean!!! 
 
+ggplot(super %>% filter(10^4*(cases/population)>0), aes(x=10^4*(cases/population))) + geom_histogram(bins=50)
 
-quantile((UScounty %>% filter(cases>0))$cases,probs=c(0.1,0.5,0.9))
+str(super)
+min(super$Date)
 
+super %>% group_by(Date) %>% filter(10^4*(cases/population)>1) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+# Check different distros, estimate Pareto (probably) in Stan with inverse-gamma prior on 
+# tail exponent. Plot over time alongside a sequence of maps. 
+# 1.26, se = 0.024
+
+super %>% filter(Date == "2020-03-27") %>% group_by(State.x) %>% filter(10^4*(cases/population)>1) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+## YUGE range of variation within States. The hardest hit states have the lowest exponents. A couple 
+# certainly < 1, and several probably < 1. Which means that no moments exist at all! This destroys 
+# the aggregation properties entirely. 
+
+
+```
+
+```{r}
+library(maps)
+library(dplyr)
+
+data(county.fips)
+str(county.fips)
+
+## Set up fake df_pop_county data frame
+str(df_pop_county)
+df_pop_county <- data.frame(region=county.fips$fips)
+
+
+df_pop_county$value <- county.fips$fips
+y <- df_pop_county$value
+df_pop_county$color <- gray(y / max(y))
+
+## merge population data with county.fips to make sure color column is
+## ordered correctly.
+super$fips <- as.integer(super$fips)
+
+counties <- county.fips %>% left_join(super, by=c('fips'='fips'))
+
+
+map("county", fill=TRUE, col=10^4*(counties$cases/counties$population))
+
+?map
+str(MainCounty)
+MainState <- map_data("state")
+MainCounty <- map_data("county")
+colnames(MainCounty)[5:6] <- c("state", "county")
+
+MainCountys <- MainCounty %>% left_join(super,by = c("state","county"))
+str(MainCountys)
+unique(super$state)
+unique(MainCounty$state)
+unique(MainCounty$county)
+# Oy gevalt. Need to decapitalize the character string in super
+library(R.utils)
+super$state <- decapitalize(super$state)
+super$county <- decapitalize(super$county)
+
+left_join0 <- function(x, y, fill = 0L,...){
+  require(tidyr);require(dplyr)
+  z <- left_join(x, y)
+  tmp <- setdiff(names(z), names(x))
+  z <- replace_na(z, setNames(as.list(rep(fill, length(tmp))), tmp))
+  z
+}
+library(tidyverse)
+
+super2 <- super %>% drop_na("cases") %>% filter(cases>0) %>% group_by(State.x,County.x) %>% mutate(jday0 = jday- min(jday)) 
+
+  
+
+MainState <- map_data("state")
+MainCounty <- map_data("county")
+MainCity <- map_data("city")
+
+MainCountys <- MainCounty %>% left_join(super%>% filter(Date=="2020-03-27"),by = c("state","county"))
+str(MainCounty)
+
+
+
+county_plot <- ggplot() + 
+  geom_polygon(data=MainCounty, aes(x=long, y=lat, group=group),
+                color="black", fill=NA) + 
+ geom_polygon(data=MainCountys, aes(x=long, y=lat,group=group,fill=10^4*(cases/population)),
+              color="black")
+
+county_plot <- county_plot + scale_fill_continuous(name="Covid-19 Cases (per 10000)", 
+            low = "lightblue", high = "darkblue",limits = c(0,40), 
+            breaks=c(10,20,30,40), na.value = "grey50") +
+labs(title="Covid-19 in the Mainland United States", subtitle = 
+                 "Date: March 27th 2020, Covid Data: NYT, County Data: US Census/USDA ERS, creator: Chris H. Wilson")
+
+
+county_plot <- county_plot + 
+ # theme(legend.position = "bottom") +
+  scale_fill_viridis_c(option = "magma", direction = -1,name="Covid-19 Cases (per 10000)") +
+labs(title="Covid-19 in the Mainland United States", subtitle = 
+                 "Date: March 27th 2020, Covid Data: NYT, County Data: US Census/USDA ERS, creator: Chris H. Wilson")
+
+
+# To do: Add NYC.  
+
+
+county_plot
 ```
 
 
 
+```{r}
 
+
+
+
+```
 
 
