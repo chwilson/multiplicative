@@ -16,7 +16,7 @@ output:
   
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr); library(lubridate); library(cowplot);
-library(arm); library(readxl)
+library(arm); library(readxl); library(ggplot2)
 
 knitr::opts_knit$set(eval.after = 'fig.cap')
 
@@ -238,7 +238,7 @@ library(readr)
 #x <- getURL("https://raw.github.com/nytimes/covid-19-data/blob/master/us-counties.csv")
 urlfile="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
 UScounty<-read_csv(url(urlfile))
-str(UScounty)
+#str(UScounty)
 UScounty$Date <- ymd(UScounty$date)
 UScounty$jday <- julian(UScounty$Date)-min(julian(UScounty$Date))
 UScounty$County <- as.factor(UScounty$county)
@@ -250,15 +250,15 @@ UScounty$State <- as.factor(UScounty$state)
 #library(readxl)
 
 county_ERS <- read_csv("ERS_county_data.csv")
-str(county_ERS)
+#str(county_ERS)
 
 cols_select <- c("POP_ESTIMATE_2018","fips","State","Area_Name","Rural-urban_Continuum Code_2013")
 cERS <- county_ERS[,cols_select]
-str(cERS)
+#str(cERS)
 colnames(cERS) <- c("population","fips","State","County","Density_Code")
 
 super <- merge(UScounty,cERS,by="fips")
-str(super)
+#str(super)
 
 super$County.y <- as.factor(super$County.y)
 super$State.y <- as.factor(super$State.y)
@@ -285,13 +285,21 @@ super %>% filter(State.x %in% c("Michigan","Florida", "Louisiana", "New York"),C
 
 
 ggplot(super %>% filter(State.x %in% c("Michigan","Florida"), County.x %in% c("Washtenaw","Alachua","Wayne","Miami-Dade")), aes(x=Date, y = 10^4*(cases/population), color = State.x, group = interaction(State.x,County.x))) + geom_line() + geom_point(aes(shape=County.x)) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "1 days"))+
-  theme_bw(base_size=15) +   xlab("") + ylab("Cases (#/10000)") + 
+  theme_bw(base_size=20) +   xlab("") + ylab("Cases (#/10000)") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+ggplot(super %>% filter(State.x %in% c("Idaho")), aes(x=Date, y = 10^4*(cases/population), color = County.x)) + geom_line() + geom_point() + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "1 days"))+
+  theme_bw(base_size=20) +   xlab("") + ylab("Cases (#/10000)") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
 
 
-ggplot(super %>% filter(State.x %in% c("Michigan","Florida", "Louisiana", "New York"), County.x %in% c("Washtenaw","Alachua", "Miami-Dade","Wayne","Orleans", "New York City")), aes(x=Date, y = 10^4*(cases/population), color = State.x, group = interaction(State.x,County.x))) + geom_line() + geom_point(aes(shape=County.x)) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "2 days"))+
+
+
+
+ggplot(super %>% filter(State.x %in% c("Michigan", "Louisiana", "New York"), County.x %in% c("Wayne","Orleans", "New York City")), aes(x=Date, y = 10^4*(cases/population), color = State.x, group = interaction(State.x,County.x))) + geom_line() + geom_point(aes(shape=County.x)) + scale_x_date(breaks = function(x) seq.Date(from = min(x),   to = max(x), by = "2 days"))+
   theme_bw(base_size=15) +   xlab("") + ylab("Cases (#/10000)") + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
