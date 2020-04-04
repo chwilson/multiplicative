@@ -238,11 +238,25 @@ library(maps)
 library(ggplot2)
 library(gganimate)
 
+map_data("cities")
 
 MainCountys <- MainCounty %>% left_join(super,by = c("state","county"))
 
+MainState <- map_data("state")
+MainCounty <- map_data("county")
+MainCountry <- map_data("usa")
+str(MainCountry)
+
+
+?map_data
+str(NYdata)
+NYdata$County.x
+NYdata$County.y
+
+
 myplots <- vector("list",5)
 for(i in 0:4){
+  
 county_plot <- ggplot(data=MainCountys %>% filter(Date== max(UScounty$Date)-i*7), aes(x=long, y=lat,group=group,fill=10^4*(cases/population)),
               color="black") +  geom_polygon() +
 
