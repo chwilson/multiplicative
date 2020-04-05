@@ -204,7 +204,7 @@ ggplot(NYdata, aes(x=jday,y=(10^4*(cases/population)))) + geom_line()
 NYdataSUM <- NYdata %>% group_by(jday) %>% summarize(cases = sum(cases),pop = sum(population))
 # max(NYdataSUM$pop)
 
-summary(lm(log(10^4*(cases/max(NYdataSUM$pop)))~jday,NYdataSUM))
+summary(lm(log(10^4*(cases/max(NYdataSUM$pop,na.rm=T)))~jday,NYdataSUM))
 
 # By County 
 

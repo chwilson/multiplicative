@@ -1,32 +1,163 @@
 ---
 title: "SIR Scaling"
-author: "Chris H Wilson"
-date: "4/2/2020"
+author: "Chris H Wilson, Nick Ruktanonchai*" 
+date: "4/5/2020"
 output:
+  word_document: default
   html_document: 
     toc: true 
     toc_depth: 2 
-  pdf_document: default
-  word_document: default
+  pdf_document: 
+    toc: true 
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set(echo = TRUE)
+library(dplyr); library(lubridate); library(cowplot);
+library(arm); library(maps)
+library(dplyr); library(readr)
+
+
+knitr::opts_knit$set(eval.after = 'fig.cap')
 ```
+
+
+```{r putting map data together,results = 'hide', message = F, echo = F, warning = F}
+urlfile="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv"
+UScounty<-read_csv(url(urlfile))
+UScounty$Date <- ymd(UScounty$date)
+UScounty$jday <- julian(UScounty$Date)-min(julian(UScounty$Date))
+UScounty$County <- as.factor(UScounty$county)
+UScounty$State <- as.factor(UScounty$state)
+
+# max(UScounty$Date) which date is most recent in data
+
+county_ERS <- read_csv("ERS_county_data.csv")
+cols_select <- c("POP_ESTIMATE_2018","fips","State","Area_Name","Rural-urban_Continuum Code_2013")
+cERS <- county_ERS[,cols_select]
+colnames(cERS) <- c("population","fips","State","County","Density_Code")
+super <- merge(UScounty,cERS,by="fips")
+
+super$County.y <- as.factor(super$County.y)
+super$State.y <- as.factor(super$State.y)
+
+super[which(super$County.x=="New York City"),"population"] <-  8398748 # from Wikipedia, 03/29/20
+super[which(super$County.x=="Kansas City"),"population"] <- 491918 # ditto 
+
+```
+
 
 # Background 
 
-The world is currently in the grip of a pandemic caused by the novel coronavirus SARS-CoV2. At last count, the official tally worldwide is north of 1 million confirmed cases and ~53K deaths (https://experience.arcgis.com/experience/96dd742462124fa0b38ddedb9b25e429). A great deal of attention has focused on a variety of efforts to forecast the progression of the disease, often relying on epidemiological theory (e.g.), statistical curve fitting (e.g.), or in the best case scenario, principled reconciliation of data and theory (e.g.). The fundamental theory underlying our understanding of infectious disease dynamics is encapsulated in the classical SIR equations, which I reviewed here for easy reference (https://rpubs.com/chwilson101/587211). Although the numerous assumptions of the SIR class of models are widely acknowledged, certain implications appear to be less widely appreciated. In this note, I draw attention to the fact that mean-field assumptions will fail to hold, with disastrous consequences for estimating the parameters of SIR-type equations from aggregate data. Another implication is that pandemic progression is radically *non-ergodic*. Practically speaking, this implies that local authorities should not rely on aggregate or spatially-averaged statistics to guide decision-making. 
+The world is currently in the grip of a pandemic caused by the novel coronavirus SARS-CoV2. At last count, the official tally worldwide is north of 1.25 million confirmed cases and ~68K deaths (https://experience.arcgis.com/experience/96dd742462124fa0b38ddedb9b25e429). A great deal of attention has focused on a variety of efforts to forecast the progression of the disease, often relying on epidemiological theory (e.g.), statistical curve fitting (e.g.), or in the best case scenario, principled reconciliation of data and theory (e.g.). The fundamental theory underlying our understanding of infectious disease dynamics is encapsulated in the classical SIR equations, reviewed here for easy reference (https://rpubs.com/chwilson101/587211). Although the numerous assumptions of the SIR class of models are widely acknowledged, certain implications appear to be less widely appreciated. In this note, we draw attention to the fact that mean-field assumptions will fail to hold, with potentially disastrous consequences for estimating the parameters of SIR-type ("compartment") equations from aggregate data. Another implication is that pandemic progression is radically *non-ergodic*. Practically speaking, we arrive at three conclusions: 
+
+1. The crucial $R_0$ parameter is not only time-varying, as noted elsewhere, but has crucial spatial variations. This spatial distribution is such that it leads to non-ergodic, power-law distributed case counts across counties, which frustrate mean-field models fit to aggregate data, **even if the underlying $R_0$ distribution is not power-law distributed**.
+
+2. Therefore, models should be as spatially explicit as possible, and fit to maximally disaggregated data. 
+
+3. Given the inherent difficulty of #2, local authorities should not rely too much on aggregate or spatially-averaged statistics to guide decision-making, nor wait on elaborate model development, but rather adopt a strong precautionary approach.  
 
 # Setup 
 
-To recap, the SIR equations, as I derived in (https://rpubs.com/chwilson101/587211), are:
+To recap, the canonical SIR equations, as derived in (https://rpubs.com/chwilson101/587211), are:
 
 $$\tag {1} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
 $$\tag {2} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
 $$\tag {3} \frac {dR}{dt} = \nu I $$
 
-These equations assume a well-mixed population (the mass-action princple). It is reasonable to question this assumption at large scales. For instance, a casual glance at a map of the US based on the newly released county level data from the NYT shows striking spatial heterogeneity (insert map, Fig. 1). This heterogeneity is apparent at both national and state levels. 
+These equations assume a well-mixed population (the mass-action princple). It is reasonable to question this assumption at large scales. For instance, a casual glance at a map of the US based on the newly released county level data from the NYT shows striking spatial heterogeneity (Fig.1). This heterogeneity is apparent at both national and state levels. 
+
+
+```{r National Map of Covid Cases, echo = F, message = F, warning = F, fig.height = 5, fig.width = 8}
+
+### NYT Covid Data 
+
+######### Trying with urbanmapr 
+#devtools::install_github("UrbanInstitute/urbnmapr")
+library(urbnmapr)
+#library(ggplot2)
+#library(dplyr)
+# map subtitle 
+subtitle_s <- paste("Date:",paste(max(UScounty$Date)))
+
+# Obtain county polygon data
+states_sf <- get_urbn_map(map = "states", sf = TRUE)
+counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+colnames(counties_sf)[1] <- "fips"
+
+### TO DO: 
+# Bronx, Kings, Queens, Richmond, New York counties all need to be 
+# combined into one master county and then matched to the appropriate
+# fips from the NYT. 
+#super %>% filter(State.x == "New York", County.x == "New York City")
+
+super[which(super$State.x=="New York" & super$County.x == "New York City"),"fips"] <- 90909090
+
+listoc <- c("Bronx County", "Kings County","Queens County", "Richmond County","New York County")
+
+counties_sf[which(counties_sf$county_name %in% listoc),"fips"] <-
+  90909090
+
+# Recall: super <- merge(UScounty,cERS,by="fips")
+counties_sf2 <- left_join(counties_sf,super %>% filter(Date ==max(UScounty$Date)),by="fips")
+
+#counties_sf$value = runif(length(counties_sf$county_fips), min=-1.0, max=1.0)
+
+# Plot county level data 
+  ggplot() +
+    # Plot county data and fill with value
+   geom_sf(data=counties_sf2, mapping = aes(fill = 10^4*(cases/population)), color =     NA) +
+        # Overlay State Outlines
+
+     geom_sf(data = states_sf, fill = NA , color = "black", size = 0.25) +
+    # Remove grid lines from plot
+    coord_sf(datum = NA) +   
+    labs(fill = "Random Data") + 
+    scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Cases (per 10K)",na.value = "#CCCCFF") +
+labs(title="Covid-19 in the United States", subtitle = 
+                 subtitle_s) +
+
+    theme_bw() + 
+    theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank())
+
+#cap <- "$\\textit{Figure 1: Map of confirmed Covid-19 cases in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv}$"
+```
+
+*Figure 1: Map of confirmed Covid-19 cases in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv*
+
+
+```{r National Map of Covid-19 Deaths, echo = F, message = F, warning = F, fig.height = 5, fig.width = 8}
+
+# Plot county level data 
+  ggplot() +
+    # Plot county data and fill with value
+   geom_sf(data=counties_sf2, mapping = aes(fill = 10^4*(deaths/population)), color = NA) +
+        # Overlay State Outlines
+
+     geom_sf(data = states_sf, fill = NA , color = "black", size = 0.25) +
+    # Remove grid lines from plot
+    coord_sf(datum = NA) +   
+    labs(fill = "Random Data") + 
+    scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Deaths (per 10K)",na.value = "#CCCCFF") +
+labs(title="Covid-19 mortality in the United States", subtitle = 
+                 subtitle_s) +
+
+    theme_bw() + 
+    theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank())
+
+  
+  
+  
+  
+```
+
+*Figure 2: Map of confirmed Covid-19 deaths in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv*
+
 
 However, it might be countered that we can still usefully apply the theory if only we are willing to interpret the parameters in a "mean field" fashion. Practically speaking, this is exactly what is assumed any time such a model is fit to aggregated data. We hope that the temporal trend (time series) and spatial variations hang together, amounting to an assumption of some form of ergodicity. 
 
@@ -43,7 +174,7 @@ For simplicity, I will simply linearize equation 5 under assumption that our att
 $$\tag {7} \frac {dI_x}{dt} = \nu_x (R_{0_x} - 1) I_x $$
 Following Chesson XXXX, if we assume there are a large number of spatial locations, we can estimate the area-wide dynamics by taking the expectation over space: 
 
-$$\tag {8} \mathop{\mathbb{E}}[\frac {dI_x}{dt}] = \mathop{\mathbb{E}}[\nu_x (R_{0_x} - 1) I_x]$$
+$$\tag {8} \mathop{\mathbb{E_x}}[\frac {dI_x}{dt}] = \mathop{\mathbb{E_x}}[\nu_x (R_{0_x} - 1) I_x]$$
 That is to say, for a sufficiently short interval of time, the RHS of equation 8 will represent the change in the number of infecteds in the population. In most applications of the scale transition, we are particularly concerned by the combination of non-linear equations and heterogeneity. In this case, our dynamics are first order, and at first glance this would suggest that our model should scale up just fine, even with lots of heterogeneity. 
 
 Wrung. 
@@ -51,25 +182,175 @@ Wrung.
 I will illustrate the breakdown of this hope with an even simpler model. Let us suppose for now that there is not meaningful variation in $\nu$, and so our county units vary principally in $R_0$ (and I collapse $R_0$-1 to $\psi$ for simplicity) and the current number of infecteds $I$. Given their representation as random variables in the patch model, the aggregate model is simply the product of the random variables: 
 
 $$\tag {9} \overline{\frac {dI_x}{dt}} = \overline{\nu \psi_x I_x} = \nu \overline{\psi}\overline{I} + cov(\psi,I)$$
-In short, equation 9 simply says we have to correct the mean-field model ($\nu \overline{\psi}\overline{I}$) with the covariance in $R_0$ and $I$. So far so good. If we want to rescue good parameter estimates for $R_0$ from aggregate time series data we just need to know the relevant covariance. 
+In short, equation 9 simply says we have to correct the mean-field model ($\nu \overline{\psi}\overline{I}$) with the covariance in $R_0$ and $I$. Qualitatively, this differs from simple exponential growth, and can be expressed more generically as:
+
+$$\tag {10} \frac {dx}{dt} =  \lambda x + f_t(\lambda,x)$$
+which is manifestly a non-autonomous ODE. The problem here is that no simple functional form exists for the non-automous term, which is effectively an emergent property of how the pandemic develops over space and time. 
+
+So far so good. If we want to rescue good parameter estimates for $R_0$ from aggregate time series data we just need to know the relevant covariance. 
 
 # Insights from the scale transition 
 
-But wait! Look again at Fig. 1. It turns out the distribution over $I$ is **extremely** fat-tailed. Even after normalization by population density within a county (itself a fat-tailed quantity), it remains fat-tailed and fairly well described by a Pareto distribution with low $\alpha$ exponent. Rather than national-level, I show this in Fig. 2 specifically for the case of New York (Fig 2a has all county trajectories, 2b has a histogram). On April 1st 2020, the Pareto exponent among New York counties, estimated by maximum likelihood is XX, and has been declining since March 1st 2020.  
+But wait! Look again at Fig. 1. It turns out the distribution over $I$ is **extremely** fat-tailed. Even after normalization by population density within a county (itself a fat-tailed quantity), it remains fat-tailed and fairly well described by a Pareto distribution with low $\alpha$ exponent. Rather than national-level, I show this in Fig. 3 specifically for the case of New York (Fig 3a has all county trajectories, 3b has a histogram). 
+
+```{r NY case demo, echo = F, message = F, warning = F,fig.height = 3, fig.width = 10}
+
+NYdata <- super %>% filter(State.x == "New York")
+NYdata <- NYdata %>% mutate(NormRate = 10^4*(cases/population))
+
+p1 <- ggplot(NYdata, aes(x=Date,y=10^4*(cases/population),group=County.x)) + geom_point() + geom_line() + ylab("") + xlab("") + theme_bw(base_size=14) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Covid-19 Cases per 10K")
+
+p2 <- ggplot(NYdata %>% filter(Date == max(super$Date),NormRate>2), aes(x=NormRate)) + geom_histogram(bins=100) + theme_bw(base_size=14) +
+  xlab("") + ylab("") + ggtitle("Covid-19 Cases per 10K")
+
+pareto_data <- super %>% filter(State.x == "New York") %>% group_by(Date) %>%  filter(10^4*(cases/population)>2) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+p3 <- ggplot(pareto_data,aes(x=Date)) + geom_point(aes(y=alpha_hat)) + geom_segment(aes(xend = Date,y=alpha_hat-(2*se_alpha),yend = alpha_hat + (2*se_alpha)),linetype="dashed") + 
+  theme_bw(base_size=14) +
+  geom_hline(aes(yintercept=0),color="black") + 
+  geom_hline(aes(yintercept=1),color="red") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  xlab("") + ylab("") + ggtitle("Pareto alpha exponent")
+
+#+ ggtitle("Maximum likelihood estimate of Pareto exponent", subtitle = "+/- 2 SE")
+
+print(plot_grid(p1,p2,p3,nrow=1,labels="auto",align = 'v'))
+#?plot_grid
+
+#cap_string <- paste("Figure 2: a) time series of confirmed Covid-19 cases from every county in New York State, b) historgram of the distribution of cases on",paste(max(UScounty$Date)),"c) Result of fitting distribution of Covid-19 cases on each date to a Pareto distribution via simple maximum likelihood. Graph shows maximum likelihood estimate +/- 2 SEs. Red line shows alpha = 1, below which the first moment goes to infinity (is undefined)")
+
+
+#cap <- cap_string
+
+
+```
+
+*`r paste("Figure 3: a) time series of confirmed Covid-19 cases from every county in New York State, b) historgram of the distribution of cases on",paste(max(UScounty$Date)),"c) Result of fitting distribution of Covid-19 cases on each date to a Pareto distribution via simple maximum likelihood. Graph shows maximum likelihood estimate +/- 2 SEs. Red line shows alpha = 1, below which the first moment goes to infinity (is undefined)")`*
+
+On `r max(UScounty$Date)`, the Pareto exponent among New York counties, estimated by maximum likelihood is `r round(tail(pareto_data$alpha_hat,1),2)`, and has been declining since `r head(pareto_data$Date,1)`.
 
 Fat-tailed distributions bring some important caveats to the table. First, for the standard Pareto distribution where the $\alpha$ goes below 2, the variance becomes infinite! Practically speaking, this means it is undefined. Thus, any covariance term (such as the correction in 9) is indeterminate. When the $\alpha$ parameter goes below 1, even the mean (first moment) no longer exists, thus rendering the rest of the terms in equation 9 problematic. 
 
-Unfortunately, most states are showing alpha < 2, and several alpha < 1. When we fit an exponential model iteratively to each county in New York and take the mean of the estimated growth parameters (reflecting spatial variations in $R_0$), it differs systematically from the estimate based on all counties summed together, just as our analysis suggests. In fact, we should expect a fairly high positive covariance/correlation between $R_0$ and $I$, given the dynamics at play, and thus the aggregate estimate will be systematically higher than the mean of the disaggregated estimates. 
+Unfortunately, most states are showing alpha < 2, and several alpha < 1. When we, for example, fit an exponential model iteratively to each county in New York and take the mean of the estimated growth parameters (reflecting spatial variations in $R_0$), it differs systematically from the estimate based on all counties summed together, just as our analysis suggests (Figure 3). 
+
+Note that the exponential growth parameter fit to each county separately is identical to estimating $\nu_x (R_{0_x} - 1)$ from equation 7, while fitting an exponential model to the state-aggregate data the exponential growth parameter is equivalent to fitting the mean-field portion of equation 9 $\nu \overline{\psi}\overline{I}$, while ignoring the effectively non-autonomous term $cov_t(\psi,I)$. In fact, we should expect a fairly high positive covariance/correlation between $R_0$ and $I$, given the dynamics at play, and thus the aggregate estimate will be systematically higher than the mean of the disaggregated estimates. Simply put, the non-autonomous term leads to higher growth increments than the mean-field. 
+
+```{r NY scaling discrepancy, echo = F, warning = F, message = F}
+library(latex2exp)
+library(ddpcr)
+
+NYdataSUM <- NYdata %>% filter(cases>0, county != "unknown",is.na(population)==F, is.na(cases)==F) %>% group_by(jday) %>% summarize(cases = sum(cases),pop = sum(population))
+# max(NYdataSUM$pop,na.rm=T)
+# str(NYdataSUM)
+
+ # Apparent growth rate from aggregate data: 
+state_gr <- coef(lm(log(10^4*(cases/max(NYdataSUM$pop)))~jday,NYdataSUM))[2]
+
+# By County 
+
+NYdata2 <- NYdata %>% filter(cases>0,is.na(population)==F, is.na(cases)==F, county != "unknown")
 
 
-# Conclusions 
-
-Formally, the equations (4,5,6) cannot necessarily be solved given the closure problem (minimally, we would need equations desribing how all the covariances evolve, and to demonstrate that the whole system obeyed conservation principles, etc.) However, our analysis of equation 9, in tandem with the data shown in figures 1 and 2, is sufficient to show that estimates of $R_0$ from aggregated data are systematically biased. Unfortunately, since the moments of the relevant distributions do not exist, we cannot rigorously account for this bias. Attempts to empirically estimate the covariance in equation 9 will require substantially more data than otherwise, and the empirical mean of $I$ will fail to represent the "true" mean in equation 9 when the distribution is sufficiently fat-tailed. 
-
-Our best chance at understanding and forecasting Covid-19 is to develop models at as granular a level as possible, and then rigorously and explicitly account for spatial interconnections and processes. This is a lot of work, and may be logistically challenging. Accordingly, for strategic planning purposes, SIR-type models should be used to educate the intuition about what is possible, but decisions should be made with a rather strong precautionary approach. 
+#listoc2 <- c("Bronx", "Kings","Queens", "Richmond","New York City")
+#NYdata2[which(NYdata2$county %in% listoc2),] 
 
 
+N <- length(unique(NYdata$county))
+names <- unique(NYdata$county)
+county_gr <- rep(0,N)
+skips <- vector("character")
 
+for(i in 1:N){
+ fit_df <- NYdata2 %>% filter(county == names[i])
+ {if(nrow(fit_df)==0){
+   skips <- append(skips,paste(names[i]));
+   next
+  }
+ quiet(cat(N))
+ }
+ county_gr[i] <- coef(lm(log(10^4*(cases/population))~jday,fit_df))[2]
+}
+
+
+
+# mean(county_gr,na.rm=T) # 0.22 
+            
+thet <- "$\\nu_x (R_{0_x} - 1)$"
+ggtit <- TeX(paste("Distribution of",thet,"by county",sep=" "))
+xlab <- TeX(paste(thet))
+
+ineq <- data.frame(x=county_gr) 
+p1 <- ggplot(ineq,aes(x=x)) + geom_histogram(bins=20) + 
+  geom_vline(aes(xintercept = mean(county_gr,na.rm=T))) +
+  geom_vline(aes(xintercept = state_gr),color="red") + 
+  ggtitle(ggtit)
+
+
+print(p1)
+# This value deviates substantially from that estimated from the statewide data, just as 
+# scale tranistion theory suggests it should. IOW, our estimates of R_0 do not behave in a way
+# that we would like to see! 
+
+```
+
+*Figure 4: Distribution of exponential growth rates fitted to each county in New York separately. The black line shows the mean of these growth rates (the mean-field interpretation of SIR), whereas the red line shows the actually estimated growth rate from the state-level data fitted as an aggregate. This clearly demonstrates the breakdown of the mean-field assumption, exactly as predicted by the theoretical analysis here.* 
+
+What's more, higher fat-tailedness within a state (lower $\alpha$) is exponentially correlated with the state-level aggregated prevalence of Covid-19 (Figure 6). This makes sense given that a declining $\alpha$ parameter acts to increase the predicted growth in equation 9 through both the mean-field $I$ term and the covariance term, since both the mean and the variance increase with declining $\alpha$. Moreover, declining alpha increases deviation from the mean-field, magnifying the distortion of our parameter estimates when fitting compartment models to aggregated data. To see this, we will rewrite and non-dimensionalize equation 9: 
+
+$$\tag {11} \overline{\frac {dI_x}{dt}} =  \nu \overline{\psi}\overline{I} + \rho_{\psi,I}SD(\psi)SD(I)$$
+then multiplying the second term on the RHS by $\frac{\nu \overline{\psi}\overline{I}}{\nu \overline{\psi}\overline{I}}$, we have: 
+
+$$\tag {12} \overline{\frac {dI_x}{dt}} =  \nu \overline{\psi}\overline{I} + \overline{\psi}\overline{I} \rho_{\psi,I}\frac{SD(\psi)SD(I)}{\overline{\psi}\overline{I}}=\overline{\psi}\overline{I}(\nu + \rho_{\psi,I}CV(\psi)CV(I))$$
+
+Given that $I$ is Pareto distribution, we can find the formula for its coefficient of variation (SD/Mean) as $\sqrt(CV^2)$ where $CV^2=\frac{Var}{Mean^2}$: 
+
+$$\tag{13} CV(I) = \sqrt(\frac{1}{\alpha^2 (\alpha-2)})$$
+This function clearly diverges to infinity as $\alpha$ approaches 2 from above (the meaning of infinite second moment). Nevertheless, its behavior above $\alpha=2$ is illustrative: 
+
+```{r Pareto coefficient of variation, echo = F,message=F,warning =F}
+
+xstr <- TeX(paste("$\\alpha$"))
+curve(sqrt(1/(x^2*(x-2))),2.01,4,xlab=xstr,ylab="CV(I)")
+
+```
+
+*Figure 5: Behavior of the dimensionless coefficient of variation of I as $\alpha$ decreases towards 2*
+
+It is clear that this function blows up rapidly as it approaches the asymptote at $\alpha=2$. Even at better behaved values like $\alpha=3$, the resulting multiplicative correction to the mean field from the CV(I) term is $\frac{1}{3}$, which must then be scaled by the correlation and the CV($\psi$) of course. 
+
+Altogether, note that these are not just idle speculations on the mathematical intrigues of fat-tailed distributions. It is clear from the data that as the pandemic progresses, the $\alpha$ steadily declines (Fig.3c), and that at any point in time lower $\alpha$ among counties within a state is exponentially related to pandemic severity (Figure 6). **The pesky non-autonomus term in equation 9 is all too real in its mathematical and real-world implications.** 
+
+```{r fitting Pareto distro within states, echo = F, message = F}
+table_1 <- super %>% filter(Date == max(UScounty$Date)) %>% group_by(State.x) %>% filter(10^4*(cases/population)>1) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+
+p1 <- ggplot(table_1) + geom_point(aes(x=alpha_hat,y=empMean),size=0.1) +
+  geom_text(aes(x=alpha_hat,y=empMean,label=State.x)) +
+  geom_segment(aes(x = alpha_hat - 2*se_alpha, xend = alpha_hat + 2*se_alpha,y=empMean, yend = empMean),linetype="dashed") +
+  ylab("State-level Covid-19 (cases/10K)") + 
+  xlab(paste("Pareto exponent for distribution of cases on",max(UScounty$Date))) + geom_vline(aes(xintercept=1),color="red")
+
+print(p1)
+
+
+## YUGE range of variation within States. The hardest hit states have the lowest exponents. A couple 
+# certainly < 1, and several probably < 1. Which means that no moments exist at all! This destroys 
+# the aggregation properties entirely. 
+```
+
+*Figure 6: As Pareto exponent declines, the aggregate state situation gets exponentially worse. The spatial dynamics of Covid are such that individual counties/cities are driving the entire story.* 
+
+
+# Discussion and Conclusions 
+
+Formally, the equations (4,5,6) cannot necessarily be solved via spatial expectations given the lack of functional form for the non-autonomous covariance terms and the closure problem they induce. Minimally, we would need equations desribing how all the covariances evolve while still fulfilling conservation principles. However, our analysis of equation 9 (and 10), in tandem with the distribution of county-level data, is sufficient to show that estimates of $R_0$ from aggregated data are certainly *systematically biased*. Unfortunately, since the moments of the relevant distributions often do not exist, attempting to correct for this bias with empirical estimates is problematic, since the empirical estimates themselves will be deeply biased (Cirillo and Taleb). Where alpha < 2 (effectively everywhere, Fig. 5), the second moment for $I$ is infinite and thus the non-autonomous covariance term is mathematically undefined. Where alpha < 1 (several states, Fig. 5), the first moment is infinite and thus the whole equation is thrown into doubt. 
+
+Our theoretical analysis not only pinpoints the difficulty in deriving accurate mean-field parameter estimates/interpretations for $R_0$, it is also directionally correct about the implication of the resulting bias for aggregate-scale pandemic behavior. Equation 9 clearly suggests that aggregate growth rate should be higher than mean-field (since first principles suggest a positive covariance between $R_0$ and $I$), a result demonstrated in Figure 4. Moreover, we also see that the severity of the state-wide aggregate situation is exponentially related to the underlying fat-tailedness of the spatial distribution of cases across counties in Figure 5. 
+
+Altogether, we argue our best chance at understanding and forecasting pandemic progression is to develop models at as granular a spatial level as possible, and then rigorously and explicitly account for spatial interconnections and processes. One recommended approach is the use of movement data to explain the high degree of spatial autocorrelation evident in Figures 1 and 2, where we observe a seemingly stochastic distribution of hotspots at the national level coupled with local (county-county) diffusion. 
+
+The work required to develop and fit granular models is large and should not be underestimated. More highly parameterized models also induce their own problems with uncertainty and specificity, and ensuring models are sufficiently robust to a wide range of error is critically important in these life-and-death applications.Accordingly, for strategic planning purposes, we recommend that SIR-type models should be used to educate the intuition about what is possible, but decisions should be made with a rather strong precautionary approach. Local officials who question the integrity or depth of their county-level data, should consider smoothing their estimates based on spatially-weighted local neighborhoods. Coarse-grained state-level and national-level statistics should not be used to guide local-level decision-making, except with an extremely coarse grain of salt. 
+
+# References 
 
 
 
