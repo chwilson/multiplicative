@@ -1,0 +1,139 @@
+---
+title: Fit multicompartment epidemiological models to maximally disaggregated data: insights into the spatial aggregation properties of the SIR equations from scale transition theory    
+author:
+  - name: Chris H. Wilson
+    email: chwilson@ufl.edu
+    affiliation: University of Florida, Agronomy Department
+    corresponding: chwilson@ufl.edue
+  - name: Nick Ruktanonchai 
+    email: n.ruktanonchai@soton.ac.uk
+    affiliation: University of Southampton 
+address:
+  - code: University of Florida
+    address: Agronomy Department, 3119 McCarty Hall B, Gainesville, Florida, 32618 
+  - code: University of Southamptom
+    address: Geography, Building 44, Southamptom, United Kingdom, XXXX
+    
+abstract: |
+ Although the numerous assumptions of the SIR class of models are widely acknowledged, certain implications appear to be less widely appreciated. In this note, we draw attention to the fact that mean-field assumptions will fail to hold, with potentially disastrous consequences for estimating the parameters of SIR-type ("compartment") equations from aggregate data. Another implication is that pandemic progression is radically *non-ergodic*. Practically speaking, we arrive at three conclusions: 1.The crucial $R_0$ parameter is not only time-varying, as noted elsewhere, but has crucial spatial variations. This spatial distribution is such that it leads to non-ergodic, power-law distributed case counts across counties, which frustrate mean-field models fit to aggregate data, **even if the underlying $R_0$ distribution is not power-law distributed**; 2. Therefore, epidemiological models should be as spatially explicit as possible, and fit to maximally disaggregated data, and 3. Given the inherent difficulty of #2, local authorities should not rely too much on aggregate or spatially-averaged statistics to guide decision-making, nor wait on elaborate model development, but rather adopt a strong precautionary approach.  
+  
+author_summary: |
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+bibliography: mybibfile.bib
+output: rticles::plos_article
+csl: plos.csl
+---
+
+_Text based on plos sample manuscript, see [http://journals.plos.org/ploscompbiol/s/latex](http://journals.plos.org/ploscompbiol/s/latex)_
+
+# Introduction
+
+
+The world is currently in the grip of a pandemic caused by the novel coronavirus SARS-CoV2. At last count, the official tally worldwide is north of 1.25 million confirmed cases and ~68K deaths (https://experience.arcgis.com/experience/96dd742462124fa0b38ddedb9b25e429). A great deal of attention has focused on a variety of efforts to forecast the progression of the disease, often relying on epidemiological theory (e.g.), statistical curve fitting (e.g.), or in the best case scenario, principled reconciliation of data and theory (e.g.). The fundamental theory underlying our understanding of infectious disease dynamics is encapsulated in the classical SIR equations. To recap, the canonical SIR equations, as derived in (https://rpubs.com/chwilson101/587211), are:
+
+$$\tag {1} \frac {dS}{dt} = - R_0 \nu I \frac{S}{N} $$
+$$\tag {2} \frac {dI}{dt} = R_0 \nu I \frac{S}{N} - \nu I $$
+$$\tag {3} \frac {dR}{dt} = \nu I $$
+
+These equations assume a well-mixed population (the mass-action princple). It is reasonable to question this assumption at large scales. For instance, a casual glance at a map of the US based on the newly released county level data from the NYT shows striking spatial heterogeneity (Fig.1 and 2). This heterogeneity is apparent at both national and state levels. 
+
+
+```{r National Map of Covid Cases, echo = F, message = F, warning = F, fig.height = 5, fig.width = 8}
+
+### NYT Covid Data 
+
+######### Trying with urbanmapr 
+#devtools::install_github("UrbanInstitute/urbnmapr")
+library(urbnmapr)
+library(sf)
+#library(ggplot2)
+#library(dplyr)
+# map subtitle 
+subtitle_s <- paste("Date:",paste(max(UScounty$Date)))
+
+# Obtain county polygon data
+states_sf <- get_urbn_map(map = "states", sf = TRUE)
+counties_sf <- get_urbn_map(map = "counties", sf = TRUE)
+colnames(counties_sf)[1] <- "fips"
+
+### TO DO: 
+# Bronx, Kings, Queens, Richmond, New York counties all need to be 
+# combined into one master county and then matched to the appropriate
+# fips from the NYT. 
+#super %>% filter(State.x == "New York", County.x == "New York City")
+
+super[which(super$State.x=="New York" & super$County.x == "New York City"),"fips"] <- 90909090
+
+listoc <- c("Bronx County", "Kings County","Queens County", "Richmond County","New York County")
+
+counties_sf[which(counties_sf$county_name %in% listoc),"fips"] <-
+  90909090
+
+# Recall: super <- merge(UScounty,cERS,by="fips")
+counties_sf2 <- left_join(counties_sf,super %>% filter(Date ==max(UScounty$Date)),by="fips")
+
+area <- st_as_sf(counties_sf2$geometry)
+area2 <- as.numeric(st_area(area))
+
+counties_sf2$area <- area2
+#counties_sf$value = runif(length(counties_sf$county_fips), min=-1.0, max=1.0)
+
+# Plot county level data 
+  ggplot() +
+    # Plot county data and fill with value
+   geom_sf(data=counties_sf2, mapping = aes(fill = 10^4*(cases/population)), color =     NA) +
+        # Overlay State Outlines
+
+     geom_sf(data = states_sf, fill = NA , color = "black", size = 0.25) +
+    # Remove grid lines from plot
+    coord_sf(datum = NA) +   
+    labs(fill = "Random Data") + 
+    scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Cases (per 10K)",na.value = "#CCCCFF") +
+labs(title="Covid-19 in the United States", subtitle = 
+                 subtitle_s) +
+
+    theme_bw() + 
+    theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank())
+
+#cap <- "$\\textit{Figure 1: Map of confirmed Covid-19 cases in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv}$"
+```
+
+*Figure 1: Map of confirmed Covid-19 cases in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv*
+
+
+```{r National Map of Covid-19 Deaths, echo = F, message = F, warning = F, fig.height = 5, fig.width = 8}
+
+# Plot county level data 
+  ggplot() +
+    # Plot county data and fill with value
+   geom_sf(data=counties_sf2, mapping = aes(fill = 10^4*(deaths/population)), color = NA) +
+        # Overlay State Outlines
+
+     geom_sf(data = states_sf, fill = NA , color = "black", size = 0.25) +
+    # Remove grid lines from plot
+    coord_sf(datum = NA) +   
+    labs(fill = "Random Data") + 
+    scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Deaths (per 10K)",na.value = "#CCCCFF") +
+labs(title="Covid-19 mortality in the United States", subtitle = 
+                 subtitle_s) +
+
+    theme_bw() + 
+    theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank())
+
+  
+```
+
+*Figure 2: Map of confirmed Covid-19 deaths in the US broken down by county. Data from the New York Time: https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv*
+
+However, it might be countered that we can still usefully apply the theory if only we are willing to interpret the parameters in a "mean field" fashion. Practically speaking, this is exactly what is assumed any time such a model is fit to aggregated data. We hope that the temporal trend (time series) and spatial variations hang together, amounting to an assumption of some form of ergodicity. 
+
+Here are two sample references: @Feynman1963118 [@Dirac1953888].
+
+# References {#references .unnumbered}
+
+

@@ -1,0 +1,93 @@
+---
+title: "Miscellaneous Covid Stuff"
+author: "Chris H. Wilson"
+date: "4/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+str(super)
+unique(super$Date)
+library(dplyr); library(ddpcr); library(tidyr)
+
+N <- length(unique(super$Date))
+names <- sort(unique(super$Date))
+alpha_exp <- rep(0,N)
+r2 <- rep(0,N)
+
+for(i in 1:N){
+  str(super)
+  cases_df <- super %>% filter(Date==names[i]) %>% select_("cases","fips","population")
+  deaths_df <- super %>% filter(Date=="2020-04-04") %>% filter(deaths>2) %>%  select_("deaths","fips","population")
+  
+  cases_df
+  cd <- left_join(deaths_df,cases_df,by = "fips") %>% drop_na()
+  
+  {if(nrow(cd)==0){
+    print(i);
+    next
+  }
+    quiet(cat(N))
+  }
+  
+  
+  p1 <- ggplot(cd, aes(x=cases/population.y,y=deaths/population.y)) + geom_point() +
+    theme_bw()
+  p2 <- ggplot(cd, aes(x=log(cases/population.y),y=log(deaths/population.y))) + geom_point() +
+    theme_bw()
+  
+  
+  #summary(lm(log(deaths/population.y)~log(cases/population.y),cd)) 
+  
+  alpha_exp[i] <- coef(lm(log(deaths/population.y)~log(cases/population.y),cd))[2]
+  r2[i] <- summary(lm(log2(deaths/population.y)~log2(cases/population.y),cd))$r.squared
+  
+}
+
+tit_str <- paste("Covid-19 deaths on",paste(max(unique(super$Date))),"as function of # cases on different dates",sep=" ")
+results <- data.frame(date = names, alpha = alpha_exp, r2 = r2)
+
+ggplot(results,aes(x=date)) + geom_line(aes(y=alpha)) + geom_line(aes(y=r2),color="blue") +
+  theme_classic() + ggtitle(tit_str,subtitle="power law exponent(black), and r^2 (blue)")
+
+# Deaths scale sublinearly with reported testing -> exponent is 0.88 
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r}
+str(states_sf)
+ggplot() +
+  # Plot county data and fill with value
+  geom_sf(data=counties_sf2 %>% filter(state=="Florida"), mapping = aes(fill = 10^4*(cases/population)), color =     NA) +
+  # Overlay State Outlines
+  
+  #    geom_sf(data = states_sf , fill = NA , color = "black", size = 0.25) +
+  # Remove grid lines from plot
+  coord_sf(datum = NA) +   
+  labs(fill = "Random Data") + 
+  scale_fill_viridis_c(option = "viridis", direction = -1,name="Covid-19 Cases (per 10K)",na.value = "#CCCCFF") +
+  labs(title="Covid-19 in the United States", subtitle = 
+         subtitle_s) +
+  
+  theme_bw() + 
+  theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank())
+
+```
