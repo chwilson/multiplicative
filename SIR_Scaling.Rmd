@@ -45,6 +45,7 @@ super$State.y <- as.factor(super$State.y)
 super[which(super$County.x=="New York City"),"population"] <-  8398748 # from Wikipedia, 03/29/20
 super[which(super$County.x=="Kansas City"),"population"] <- 491918 # ditto 
 
+
 ```
 
 
@@ -204,7 +205,7 @@ p1 <- ggplot(NYdata, aes(x=Date,y=10^4*(cases/population),group=County.x)) + geo
 p2 <- ggplot(NYdata %>% filter(Date == max(super$Date),NormRate>2), aes(x=NormRate)) + geom_histogram(bins=100) + theme_bw(base_size=14) +
   xlab("") + ylab("") + ggtitle("Covid-19 Cases per 10K")
 
-pareto_data <- super %>% filter(State.x == "New York") %>% group_by(Date) %>%  filter(10^4*(cases/population)>2) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population))), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean)
+pareto_data <- super %>% filter(State.x == "New York") %>% group_by(Date) %>%  filter(10^4*(cases/population)>2) %>% summarize(alpha_hat = n()/sum(log(10^4*(cases/population)/2)), se_alpha = alpha_hat/sqrt(n()), empMean = mean(10^4*(cases/population)), trueMean = alpha_hat/(alpha_hat-1), ratio_empTrue = trueMean/empMean) %>% filter(alpha_hat < 3)
 
 p3 <- ggplot(pareto_data,aes(x=Date)) + geom_point(aes(y=alpha_hat)) + geom_segment(aes(xend = Date,y=alpha_hat-(2*se_alpha),yend = alpha_hat + (2*se_alpha)),linetype="dashed") + 
   theme_bw(base_size=14) +
