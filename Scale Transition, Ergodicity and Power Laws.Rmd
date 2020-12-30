@@ -136,6 +136,7 @@ print(p1b)
 
 
 ```
+
 *Figure 1: Distribution of $P_t$ for heterogeneous growth rates described by Gamma(2,1.1), and given a dimensionless tail exponent $\tau$ plotted from 2 (highest peak) and descending to 1 (lowest peak). Note that the location of the mode stays effectively constant, while the probability mass spreads out progressively as $P_t$ becomes progressively fatter tailed.*
 
 As can be seen in Figure 1, the location of the mode remains effectively constant, while the probability mass spreads out more and more. This means that the expectation increases with $\tau$, as it should.
@@ -183,6 +184,7 @@ solved <- function(x,beta=beta,alpha=alpha){
 curve((beta/(beta-x))^alpha,0.55,1.05, xlab = "t", ylab = "E[P_t]")
 
 ```
+
 *Figure 2: E[$P_t$], for Gamma(2,1.1). As the time 't' approaches the value of $\beta$ (1.1) from below, note that the expectation approaches a finite-time singularity (diverges to infinity).*
 
 As can be seen in Figure 2, as time 't' approaches $\beta$ from below, the expected value of the population increases, at first slowly, and then with great acceleration as it reaches a finite time singularity, meaning that the population value diverges to infinity in a finite amount of time. This is qualitatively distinct from normal exponential growth, which goes to infinity, but only as time goes to infinity (cite Kauffman, West). 
