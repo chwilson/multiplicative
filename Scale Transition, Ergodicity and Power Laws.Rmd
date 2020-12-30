@@ -1,0 +1,243 @@
+---
+title: "Heterogeneity in multiplicative growth yields power law distributions and a finite time singularity"
+author: "Chris H Wilson"
+date: "4/12/2020"
+output: 
+  html_document: 
+    toc: true 
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Background 
+
+Scale transition theory provides a powerful coherent framework for understanding how microscale processes aggregate over larger spatial or temporal scales, and has provided numerous insights in population, community, and more recently ecosystem (Wilson and Gerber, 2020) ecology. Scale transition theory essentially represents a principled framework for the mathematical analysis of Jensen's Inequality in the context of ecological dynamics. In essence, the central insight of Jensen's Inequality is that the expectation of a non-linear function of random variables (the "spatial expectation") is not equal to the non-linear function of the expectation of the random variables (the "mean field"): 
+
+$$\tag{1} E[f(x)] \neq f(E[x])$$
+Where the function $f(x)$ is convex, the spatial expectation is always greater than or equal to the mean field, whereas when $f(x)$ is concave, it is always less than or equal to the mean field. This may all seem like some remote piece of mathematical analysis, but once you work through a couple applications of Jensen's Inequality it is impossible to "un-see". In short, these effects are pervasive throughout the mostly non-linear domain which is the study of the living world from molecules to the biosphere as a whole. 
+
+A central challenge in application of scale transition theory is not only to have defined the relevant functions $f(x)$, but to have sufficiently characterized the underlying distributions of the relevant variables $x$. Fortunately, there are some widely used approximations that can provide insight into the spatial expectation $E[f(x)]$, following the path blazed by the great Peter Chesson (e.g. XXXX,and XXXX). Rather unfortunately, this approach runs afoul of several limitations, many of which were acknowledged throughout by Chesson (e.g. XXXX), but several of which hang together in a uniquely problematic manner and deserve explicit treatment. Accordingly, in the rest of this note, I wish to show exactly how a certain class of phenomena - those marked by *stochastic multiplicative dynamics* - violate the widely used assumptions in the scale transition math, and how these violations actually inform on the generic problems of scaling in the life sciences. Along the way, I shall also "come to some very annoying conclusions" (to quote Richard Lewontin) for the dream of widespread ecological forecasting (e.g. Dietze ad nauseam). 
+
+# Basic Scale Transition Theory 
+
+The central idea is to understand the properties of expectations of (non-linear) functions of random variables. For the case of functions of a single random variable ($\theta$), the math is very tidy. We want: 
+$$\tag{2} E[f(\theta)] = \int_{\theta}f(\theta)\pi(\theta)d\theta$$
+For clever pairings of $f(\theta)$ and $\pi(\theta)$, these integrals can sometimes be solved analytically to yield an exact solution for the spatial expectation ($E[f(\theta)]$, now hereafter $\overline{f(\theta)}$). More often, they cannot be, and we instead derive a useful approximation via Taylor Series expansion to second order: 
+
+$$\tag{3} f(\theta) \approx f(\overline{\theta}) + f'(\overline{\theta})(\theta - \overline{\theta}) + \frac{1}{2}f''(\overline{\theta})(\theta - \overline{\theta})^2$$
+
+Distribution the expectation operator over the RHS, we can condense into: 
+
+$$\tag{4}  \overline{f(\theta)}  \approx f(\overline{\theta}) + \frac{1}{2}f''(\overline{\theta})Var(\theta)$$
+Equation 4 can be understood as saying that the spatial expectation is approximately equal to the mean-field plus a correction arising from the variance of the random variable multipled by one-half of the curvature evaluated at the mean. The deviation from mean-field is then obviously larger with higher variance, or with greater curvature. 
+
+In the situation where our functions involve products of random variables, say $\theta_1$ and $\theta_2$, we need to account for the *covariance* among them, as in: 
+
+$$\tag{5} \overline{f(\theta_1,\theta_2)}= \overline{\theta_1\theta_2} = \overline{\theta_1}\ \overline{\theta_2} + Cov(\theta_1,\theta_2)$$
+
+More detailed operations of the math can be found in various sources (Chesson citations), but all of the key elements needed for what follows have been introduced. Namely, the role of the first and second moments of the random variable $\theta$, and relatedly the operation of covariances. 
+
+# Critical Assumptions of the Scale Transition Math 
+
+By construction, the Taylor Series approximation is just that, an approximation. First, the approximation holds in a certain neighborhood of the mean-field. Obviously, it breaks down to the extent that higher order moments might be large- although the nature of the function will matter as well, since the differentiation order that multiplies the moment is also increasing, and this will generally act to downweight the contribution of higher terms. What I want to discuss is a far more problematic case:  the situation where the second and possibly even the first moment do not formally exist! That is to say, I want to discuss the Scale Transition under fat-tailed distributions. The limitations of the Taylor Series approximation in terms of neglect of higher order moments (e.g. skewness and above), and declining validity outside a neighborhood of the mean-field, are well known. By contrast, the problems I am highlighting in this paper have not been discussed in this context hitherto, to my knowledge. 
+
+# Power Law distributions in Life Sciences 
+
+For a notable class of probability distributions (e.g. so-called 'power law' distribitions), the location-scale intuition that is developed by study of the Gaussian, or the family of distributions that coverge to the Gaussian under aggregation (via the Central Limit Theorem), fails. We will look briefly at the archetypal case of the power law (Pareto) distribution. The simplest parameterization is in terms of the survival function $F[x]$, where we have: $$\tag{6} F[x] \sim c x^{-\alpha}$$
+where $c$ is a normalization constant, and the tail exponent is $alpha$. Briefly, the intuition here is that the exceedance probability is scale invariant: the probability of observing a number greater than 200 is $0.5^\alpha$ the probability of observing a number greater than 100. Remarkably, this scaling property holds no matter how far out into the tails you go. By contrast, for a 'thin tailed' distribution, the exceedance probability rapidly goes to zero once you are outside the body of the distribution. This has enormous consequences for the expectation of large deviations. For example, if you take a Normal(1,1) distribution (mean = 1, sd = 1), the probability of observing a number larger than 9 (8-sigmas from the mean) is roughly $6.66e^{-16}$. By contrast, for a Pareto distribution with a minimum value of 1, and an alpha exponent of 2.2 (not very extreme), the corresponding probability is roughly 0.008. In short, events far 'out in the tails' are far more likely when dealing with power-laws, and fat-tailed distributions more generally. Power laws and fat-tailed distributions have been studied extensively in the actuarial literature and the study of financial risk (under the umbrella of Extreme Value Theory), and have seen several applications to biological and geosciences. 
+
+With respect to the scale transition in ecology, there is a very acute reason to be concerned about the generation of power law distributions among the phenomena we study. As I will demonstrate shortly, a very simple model of stochastic multiplicative dynamics yields a power-law distributed tail. I apply the resulting distribution to a subset of the early County-level data on SARS-COV2 in the United States, to illustrate a compelling real-world application. But, I want to state the consequences clearly up front. 
+
+First, under a large class of reasonable assumptions, the second moment of these distributions will not exist. This invalidates the ability to compute a valid covariance term (as in Equation 5). The covariance of a fat-tailed and a well-behaved thin-tailed variable take on the properties of the fat-tailed class. This means that the correction terms to the mean-field cannot be computed, and we have no analytically tractable scale transition theory to apply. With somewhat stronger assumptions, even the first moment fails to exist. These are obvious problems for theoretical progress, but it might be objected that simulation-based approaches and empirical data can suffice to make progress. Maybe so, but there are critical caveats to consider here as well. First, 'moment matching' from empirical data suffers tremendous bias in the fat-tailed domain (Bayesian and maximum likelihood methods must be used to estimate the parameters instead*). Second, incomplete observation records have even more significance in this case. Parameter estimates can be very sensitive to the inclusion/exclusion of data, so even small misses can have huge consequences; a single data point can be decisive in the fat-tailed domain in a way that is highly unlikely (or even virtually impossible) in the thin-tailed domain. For these reasons, to the extent that insight into and forecasting of ecosystem dynamics relies on the upscaling of stochastic, multiplicative processes, we may be in big trouble. 
+
+* This is not necessarily a bad thing. However, estimation uncertainty can remain large 
+
+# Heterogeneous multiplicative growth  
+
+In this section, we derive two foundational results. First, we find the probability distribution for a super-population composed of sub-populations growing exponentially with heterogeneity in their exponential growth. Second, we solve the expectation of this distribution and analyze the implied dynamics. We find sure convergence to a power law distribution in time, and the existence of a finite time singularity at the level of the super-population. 
+
+## Probability distribution 
+A population undergoing exponential growth, with a heterogeneous growth rate parameter, will assume a power-law distribution over time. To see this, let: $$\tag{7}p[t] = p[0]e^{rt}$$ represent a population growing from some initial value $p[0]$ with exponential growth rate $r$. We then imagine a super-population composed of many populations, each growing exponentially, but with an exponential growth rates distributed following a Gamma distribution with shape = $\alpha$, and rate = $\beta$. The scaled-up population growth (corresponding to equation 2) is then: $$\tag{8} \int_{r} p[0]e^{rt}Gamma(r|\alpha,\beta)dr$$
+Fortunately, the integrand in (8) has an exact analytical solution, explored below. Before we do the integration however, I point out that the integrand actually implies a pushforward distribution for $P_t$, which follows a power-law distribution. 
+
+After accounting for the Jacobian of the transform from $r$ to $P_t$ (i.e. $|\frac{dr}{dP_t}|$), setting $P_0$ to unity (which changes the meaning of $P_t$ to represent population as a multiple of initial value), and algebraic re-arranging, we find this distribution has form: $$\tag{9} \pi(P_t) = \frac{B^\alpha}{\Gamma{(\alpha)}}\frac{1}{t}\frac{ln(P_t)}{t}^{\alpha-1}P_t^{-(\frac{\beta}{t}+1)}$$
+This distribution is *extremely* fat-tailed, and the fat-tailed behavior grows rapidly with time. The last term on the RHS $P_t^{-(\frac{\beta}{t}+1)}$ is of clearly power-law form, and dominates as $t$ increases, or as $\alpha$ (the shape parameter of the Gamma distribution) declines towards 1 from above. In this distribution, $\frac{\beta}{t}$ is the analogue of the tail alpha exponent in the Pareto distribution. Thus, it is worth recalling that for a Pareto type I, as $\alpha$ goes below 2, the variance becomes infinite (undefined), and as $\alpha$ goes below 1, the mean becomes infinite (undefined). In this way, the Gamma rate parameter describing the heterogeneous growth rates, sets a characteristic time-scale for the behavior of this distribution.  
+
+```{r distro over P_t, echo = F, eval = F}
+
+library(ggplot2); library(cowplot)
+gammaGro <- function(pt, alpha, beta, t){
+  gG_density <- ((beta^alpha)/(gamma(alpha)))*(1/t)*((log(pt)/t)^(alpha-1))*pt^(-(beta/t + 1));
+  return(gG_density);
+}
+
+gammaGro2 <- function(pt,...){
+  gG_density <- ((beta^alpha)/(gamma(alpha)))*(1/t)*((log(pt)/t)^(alpha-1))*pt^(-(beta/t + 1));
+  return(gG_density);
+}
+
+#curve(gammaGro(x,alpha=2,beta=1.1,t=3),1,10)
+alpha=2
+beta=1.1
+t=1
+integrate(gammaGro2,1,1000,args = list(alpha=2,beta=1.1,t=1))
+t = 6
+#integrate(gammaGro2,1,10000000,args = list(alpha=2,beta=1.1,t=1))
+
+p1 <- ggplot(data = data.frame(x = c(1,25)),aes(x)) + 
+        stat_function(fun=gammaGro, args = list(alpha=2,beta=1.1,t=1))
+  for(i in 1:10){
+  p1 <- p1 + 
+    stat_function(fun=gammaGro, args = list(alpha=2,beta=1.1,t=1+i*0.1),linetype="dashed")
+  }
+
+ 
+p2 <- ggplot(data = data.frame(x = c(1000,1100)),aes(x)) + 
+        stat_function(fun=gammaGro, args = list(alpha=2,beta=1.1,t=1))
+  for(i in 1:10){
+  p2 <- p2 + 
+    stat_function(fun=gammaGro, args = list(alpha=2,beta=1.1,t=1+i*0.1),linetype="dashed")
+  }
+
+ plot_grid(p1,p2)
+ 
+ 
+```
+
+To gain greater insight, we may re-express this equation with characteristic time $\tau = \frac{\beta}{t}$, resulting in a dimensionless quantity $\tau$. In this form, we have: $$\tag{10} \pi(P_t) = \frac{B^\alpha}{\Gamma{(\alpha)}}  (\frac{\tau}{\beta})^\alpha  ln(P_t)^{\alpha-1}  P_t^{-(\tau+1)}$$
+One advantage of equation 10 is that $\tau$ is now directly analogous to the tail alpha exponent in the Pareto Type I distribution. We plot this distribution below in Figure 1 
+
+```{r distro over P_t with dimensionless tau, echo = F}
+
+gammaGroTau <- function(pt, alpha, beta, tau){
+  gG_density <- ((beta^alpha)/(gamma(alpha)))*((tau/beta)^alpha)*((log(pt))^(alpha-1))*pt^(-(tau + 1));
+  return(gG_density);
+}
+
+
+p1b <- ggplot(data = data.frame(x = c(1,10)),aes(x)) + 
+       stat_function(fun=gammaGroTau, args = list(alpha=2,beta=1.1,tau=1)) + 
+       labs(
+         x = "Pt",
+         y = "Density"
+       ) + 
+      theme_bw(base_size = 15)
+  for(i in 1:9){
+  p1b <- p1b + 
+    stat_function(fun=gammaGroTau, args = list(alpha=2,beta=1.1,tau=1+i*0.1))
+  }
+
+print(p1b)
+
+
+
+```
+*Figure 1: Distribution of $P_t$ for heterogeneous growth rates described by Gamma(2,1.1), and given a dimensionless tail exponent $\tau$ plotted from 2 (highest peak) and descending to 1 (lowest peak). Note that the location of the mode stays effectively constant, while the probability mass spreads out progressively as $P_t$ becomes progressively fatter tailed.*
+
+As can be seen in Figure 1, the location of the mode remains effectively constant, while the probability mass spreads out more and more. This means that the expectation increases with $\tau$, as it should.
+
+## Expectation of super-population 
+
+Since the mean is of course just a scaled summation, the aggregate population we are modeling is naturally increasing with time. We can solve analytically for the mean (expected value), which represents the integral in equation 8. After some integration, and again setting $P_0$ to unity this expectation is: $$\tag{11} \frac{\beta}{\beta-t}^\alpha$$. We plot this expectation for the choice of Gamma(2,1.1) distribution in Figure 2 below. 
+
+```{r superexponential growth, echo = F}
+N <- 10^4
+times <- 10^2+10
+alpha <- 2
+beta <- 1.1 
+gr <- rgamma(N,alpha,beta)
+hist(gr,breaks=30)
+
+# Empirical simulation of the spatial mean 
+Pt <- matrix(0,N,times)
+Pt[,1] <- 1
+for(i in 1:N){
+  for(j in 2:times){
+    Pt[i,j] <- Pt[i,1]*exp(gr[i]*0.01*j)
+  }
+}
+
+#hist(Pt[,2],breaks=20)
+#apply(Pt,2,mean)
+#plot(apply(Pt,2,mean))
+sp_mean <- apply(Pt,2,mean)
+#plot(seq(1,110,1),log(sp_mean))
+sim_df <- data.frame(time = seq(1,110,1), spMean_sim = sp_mean)
+
+# Analytical solution 
+solved <- function(x,beta=beta,alpha=alpha){
+  return((beta/(beta-x))^alpha)
+}
+
+# Plotting empirical and analytical side-by-side 
+#ggplot() +
+#  geom_line(data=sim_df,aes(x=0.01*time,y=spMean_sim)) + 
+#  stat_function(fun=solved,args=list(alpha=alpha,beta=beta),color="red") + 
+#  scale_x_continuous(limits=c(0,1))
+  
+
+curve((beta/(beta-x))^alpha,0.55,1.05, xlab = "t", ylab = "E[P_t]")
+
+```
+*Figure 2: E[$P_t$], for Gamma(2,1.1). As the time 't' approaches the value of $\beta$ (1.1) from below, note that the expectation approaches a finite-time singularity (diverges to infinity).*
+
+As can be seen in Figure 2, as time 't' approaches $\beta$ from below, the expected value of the population increases, at first slowly, and then with great acceleration as it reaches a finite time singularity, meaning that the population value diverges to infinity in a finite amount of time. This is qualitatively distinct from normal exponential growth, which goes to infinity, but only as time goes to infinity (cite Kauffman, West). 
+
+# Discussion 
+
+In short, not only does heterogeneity in multiplicative growth lead to a mother of all power laws type situation, the resulting spatially averaged growth is super-exponential! Note that our theory is a derivation from microscale to macroscale dynamics, and hence is a special case of the Scale Transition (sensu Chesson XXXX). We start with simple exponential 'patch' dynamics (equations 7 and 8), and then recover two rather remarkable features of the scaled-up behavior: 1. the closed-form distribution of aggregate population size $P_t$, which is a fat-tailed distribution that becomes increasingly fat-tailed with time, and 2. the analytical solution of expectation of $P_t$ displays super-exponential growth. 
+
+Similar results were obtained in a more complicated setting, using different underlying assumptions by Krapivsky and Mallick (2013). Likewise, Khalin et al. (2018) derive super-exponential growth in a super-population merely from gaussian heterogeneity in resource distribution, which in fact represents an acknowledgement of a feature already present in Chesson (XXXX,XXXX), bvecause it is a function of the quadratic of time multiplied by the variance. Note also that a canonical derivation of super-exponential growth is to start with exponential growth but with a power-law on the growth parameter. 
+
+I believe that this result poses severe challenges for many of the formalisms underlying theoretical ecology, and population studies. First, given the ubiquity of spatial heterogeneity, I posit that this form of growth should be the default or 'null model', rather than vanilla exponential growth patterns. The spatial distribution that this induces is extremely fat-tailed, and in the limit as time progresses will be dominated by singular observations in any finite sample. Notice also: the underlying heterogeneity does not matter. So long as **any** heterogeneity exists, as time goes on, maximal fat-tailedness will be realized (in our setup, the tail exponent will approach $\beta$). Once the tail-exponent ($\tau$) reaches 1, the expectation diverges to infinity resulting in a finite-time singularity in the aggregate growth, and a statistical distribution with completely undefined, hence indeterminable, moments. 
+
+Now, in the real biosphere, no population continues to expand indefinitely, and there is a theoretical upper limit to the maximum rate of exponential growth in any given patch. We can capture the latter by an upper truncation on the Gamma. This will make a better behaved distribution, in particular the finite time singularity does not appear under truncated support, but qualitatively the superexponential behavior remains. The eventual limitations in the rate of resource capture, inter and intraspecific competition, and negative feedbacks from predators and pathogens will constrain populations somewhere short of the singularity. 
+
+# Implications for Scale Transition in theory and practice 
+
+As noted in the background section, the usual formalism of Scale Transition theory requires that variances and covariances be mathematically well-defined objects, for at least two reasons: 1. In many cases, this is necessary so that Taylor Series' approximations hold and can afford useful insight, and 2. empirical fit to data requires that these quantities be well-behaved. However, we have seen that, no matter the parameters of the distribution describing the spatial heterogeneity, the statistical distribution will become progressively fat-tailed, and the moments will, like falling dominoes, progressively become infinite in reverse order. 
+
+The frustrating limitations of data-model reconciliation are not merely academic hurdles. This framework virtually guarantees that efforts to forecast or predict the future state of the super-population are guaranteed to fall short. The data required to accurately constrain the distribution increase as a function of fat-tailedness 
+
+# Application to SARS-COV2 
+
+Under development. Relevant preliminary results in https://rpubs.com/chwilson101/593913
+
+
+
+
+```{r, include = F, echo = F}
+getwd()
+NYdat <- read.csv("SAR2_NY_early.csv")
+str(NYdat)
+
+
+p1 <- ggplot(NYdat, aes(x=Date,y=10^4*(cases/population),group=County.x)) + geom_point() + geom_line() + ylab("") + xlab("") + theme_bw(base_size=14) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Covid-19 Cases per 10K")
+
+NYdat2 <- NYdat %>% group_by(Date) %>% summarize(SARS2 = sum(10^4*(cases/population),na.rm=T))
+
+ggplot(NYdat2, aes(x=Date,y=SARS2)) + geom_point() + geom_line() + ylab("") + xlab("") + theme_bw(base_size=14) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Covid-19 Cases per 10K")
+
+str(NYdat2)
+NYdat2$time <- seq(1,nrow(NYdat2),1)
+write.csv(NYdat2,"SARS2_NY_earlySUM.csv")
+
+?nls
+nls1 <- nls(SARS2 ~ (beta/(beta-time))^alpha, 
+            start = list(beta = 1, alpha = 1),
+            data= NYdat2)
+
+```
+
+
+
+
+
+
+
+
+
