@@ -1,7 +1,7 @@
 ---
 title: "Heterogeneity in multiplicative growth yields power law distributions and a finite time singularity"
 author: "Chris H Wilson"
-date: "4/12/2020"
+date: "4/12/2020, rev 12/30/2020"
 output: 
   html_document: 
     toc: true 
@@ -210,10 +210,9 @@ Under development. Relevant preliminary results in https://rpubs.com/chwilson101
 
 
 
-```{r, include = F, echo = F}
-getwd()
+```{r, eval = F, echo = F}
+
 NYdat <- read.csv("SAR2_NY_early.csv")
-str(NYdat)
 
 
 p1 <- ggplot(NYdat, aes(x=Date,y=10^4*(cases/population),group=County.x)) + geom_point() + geom_line() + ylab("") + xlab("") + theme_bw(base_size=14) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Covid-19 Cases per 10K")
