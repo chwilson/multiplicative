@@ -203,11 +203,12 @@ Now, in the real biosphere, no population continues to expand indefinitely, and 
 
 As noted in the background section, the usual formalism of Scale Transition theory requires that variances and covariances be mathematically well-defined objects, for at least two reasons: 1. In many cases, this is necessary so that Taylor Series' approximations hold and can afford useful insight, and 2. empirical fit to data requires that these quantities be well-behaved. However, we have seen that, no matter the parameters of the distribution describing the spatial heterogeneity, the statistical distribution will become progressively fat-tailed, and the moments will, like falling dominoes, progressively become infinite in reverse order. 
 
-The frustrating limitations of data-model reconciliation are not merely academic hurdles. This framework virtually guarantees that efforts to forecast or predict the future state of the super-population are guaranteed to fall short. The data required to accurately constrain the distribution increase as a function of fat-tailedness 
+The frustrating limitations of data-model reconciliation are not merely academic hurdles. This framework virtually guarantees that efforts to forecast or predict the future state of the super-population are guaranteed to fall short. The data required to accurately constrain the distribution increase as a function of fat-tailedness. 
 
 # Application to SARS-COV2 
 
 Under development. Relevant preliminary results in https://rpubs.com/chwilson101/593913
+
 
 
 
